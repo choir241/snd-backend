@@ -1,20 +1,47 @@
 const { SquareError } = require("square");
-const client = require('../middleware/squareClient');
+const client = require("../middleware/squareClient");
 
 module.exports = {
   getPackages: async (req, res) => {
     try {
-        const catalogList = await client.catalog.list();
-        const packageList = catalogList.data.map((item)=>{
-          if(item !== undefined && item.itemData !== undefined && item.itemData.productType === "APPOINTMENTS_SERVICE"){              
-              return {
-                descriptionPlaintext: item.itemData.descriptionPlaintext,
-                descriptionHtml: item.itemData.descriptionHtml,
-                name: item.itemData.name
-              }
+      const catalogList = await client.catalog.searchItems({
+        productTypes: ["APPOINTMENTS_SERVICE"],
+      });
+
+      let variations = [];
+      let packageList;
+      packageList = catalogList.items.map((item) => {
+        variations.push(item.itemData.variations.map((variation) => {
+          if (variation.itemVariationData.priceMoney) {
+            return {
+              name: variation.itemVariationData.name,
+              itemId: variation.itemVariationData.itemId,
+              priceMoneyAmt: `${variation.itemVariationData.priceMoney.amount}`,
+              priceMoneyCurr: `${variation.itemVariationData.priceMoney.currency}`,
+              serviceDuration: `${variation.itemVariationData.serviceDuration}`,
+              presentAtAllLocations: variation.presentAtAllLocations,
+              availableForBooking:
+                variation.itemVariationData.availableForBooking,
+            };
+          } else {
+            return {
+              name: variation.itemVariationData.name,
+              itemId: variation.itemVariationData.itemId,
+              serviceDuration: `${variation.itemVariationData.serviceDuration}`,
+              presentAtAllLocations: variation.presentAtAllLocations,
+              availableForBooking:
+                variation.itemVariationData.availableForBooking,
+            };
           }
+        }));
+        return {
+          descriptionPlaintext: item.itemData.descriptionPlaintext,
+          descriptionHtml: item.itemData.descriptionHtml,
+          name: item.itemData.name,
+        };
         });
-        res.json(packageList);
+
+        res.json({packageList: packageList, variations: variations});
     } catch (error) {
       if (error instanceof SquareError) {
         error.errors.forEach(function (e) {
@@ -22,7 +49,9 @@ module.exports = {
           console.error(e.code);
           console.error(e.detail);
         });
-        console.error(`There was an issue fetching the package catalogs - ${error}`)
+        console.error(
+          `There was an issue fetching the package catalogs - ${error}`
+        );
       } else {
         console.error("Unexpected error occurred: ", error);
       }
