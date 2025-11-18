@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const bookingRoutes = require("./routes/bookings")
+const packageRoutes = require("./routes/packages")
 require("dotenv").config();
 
 app.use(cors());
@@ -11,7 +11,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 //Setup Routes For Which The Server Is Listening
-app.use("/", bookingRoutes);
+app.use("/", packageRoutes);
 
 //Server Running
 app.listen(process.env.PORT, () => {
