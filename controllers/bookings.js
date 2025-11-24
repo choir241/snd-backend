@@ -1,23 +1,41 @@
 const { SquareError } = require("square");
-const client = require('../middleware/squareClient');
+const client = require("../middleware/squareClient");
+require("dotenv").config();
 
 module.exports = {
   searchAvailability: async (req, res) => {
     try {
-        const getAvailability = await client.bookings.searchAvailability({
-            query: {
-                filter: {
-                    startAtRange: {
-                        startAt: "2025-11-18T14:35:00Z",
-                        endAt: "2025-11-25T14:35:00Z",
-                    },
-                    locationId: process.env.LOCATION_ID,
-                    segmentFilters: {
-                        serviceVariationId: ""
-                    }
-                }
-            }
-        })
+
+      const getAvailability = await client.bookings.searchAvailability({
+        query: {
+          filter: {
+            startAtRange: {
+              startAt: req.body.startAt,
+              endAt: req.body.endAt,
+            },
+            locationId: process.env.LOCATION_ID,
+            segmentFilters: [
+              {
+                serviceVariationId: req.params.variationId,
+              },
+            ],
+          },
+        },
+      });
+
+      const getAppointments = getAvailability.availabilities.map(
+        (availability) => {
+          return availability.appointmentSegments.map((variation) => {
+            return {
+              durationMinutes: variation.durationMinutes,
+              teamMemberId: variation.teamMemberId,
+              serviceVariationId: variation.serviceVariationId,
+            };
+          });
+        },
+      );
+
+      res.json({ avail: getAppointments, appts: getAppointments });
     } catch (error) {
       if (error instanceof SquareError) {
         error.errors.forEach(function (e) {
@@ -25,7 +43,9 @@ module.exports = {
           console.error(e.code);
           console.error(e.detail);
         });
-        console.error(`There was an issue fetching the package catalogs - ${error}`)
+        console.error(
+          `There was an issue fetching the package catalogs - ${error}`,
+        );
       } else {
         console.error("Unexpected error occurred: ", error);
       }
