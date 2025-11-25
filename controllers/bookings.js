@@ -5,7 +5,6 @@ require("dotenv").config();
 module.exports = {
   searchAvailability: async (req, res) => {
     try {
-
       const getAvailability = await client.bookings.searchAvailability({
         query: {
           filter: {
