@@ -3,6 +3,8 @@ const app = express();
 const cors = require("cors");
 const packageRoutes = require("./routes/packages");
 const bookingsRoutes = require("./routes/bookings");
+const purchasesRoutes = require("./routes/purchases");
+const authRoutes = require("./routes/auth");
 require("dotenv").config();
 
 app.use(cors());
@@ -12,7 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 //Setup Routes For Which The Server Is Listening
-app.use("/", packageRoutes, bookingsRoutes);
+app.use("/", packageRoutes, bookingsRoutes, purchasesRoutes, authRoutes);
 
 //Server Running
 app.listen(process.env.PORT, () => {
