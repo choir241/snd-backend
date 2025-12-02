@@ -1,6 +1,6 @@
 require("dotenv").config();
 const crypto = require("crypto");
-const { oauthClient, client } = require("../middleware/squareClient");
+const { oauthClient } = require("../middleware/squareClient");
 const { URL } = require("url");
 const { URLSearchParams } = require("url");
 const { MongoClient } = require("mongodb");
@@ -117,4 +117,20 @@ module.exports = {
       console.error(err);
     }
   },
+  getUsers: async (req, res) => {
+    try{
+
+      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
+      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
+
+      const collection = db.collection("Users");
+
+      const users = await collection.find({}).toArray();
+
+      res.status(200).json(users);
+
+    }catch(err){
+      console.error(err);
+    }
+  }
 };
