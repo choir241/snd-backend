@@ -6,12 +6,14 @@ const bookingsRoutes = require("./routes/bookings");
 const purchasesRoutes = require("./routes/purchases");
 const authRoutes = require("./routes/auth");
 require("dotenv").config();
+const cookieParser = require("cookie-parser");
 
 app.use(cors());
 
 //Body Parsing
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 //Setup Routes For Which The Server Is Listening
 app.use("/", packageRoutes, bookingsRoutes, purchasesRoutes, authRoutes);

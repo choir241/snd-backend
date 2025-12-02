@@ -1,5 +1,5 @@
 const { SquareError } = require("square");
-const {client} = require("../middleware/squareClient");
+const { client } = require("../middleware/squareClient");
 
 module.exports = {
   getPackages: async (req, res) => {

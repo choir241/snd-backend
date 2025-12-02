@@ -1,6 +1,6 @@
 require("dotenv").config();
 const crypto = require("crypto");
-const { oauthClient } = require("../middleware/squareClient");
+const { oauthClient, client } = require("../middleware/squareClient");
 const { URL } = require("url");
 const { URLSearchParams } = require("url");
 const { MongoClient } = require("mongodb");
@@ -35,6 +35,8 @@ module.exports = {
       const connectMongoClient = new MongoClient(process.env.MONGO_URI);
       const url = new URL(req.originalUrl, `http://${req.headers.host}`);
       const params = new URLSearchParams(url.search);
+
+      console.log(req);
 
       const code = params.get("code");
 
@@ -74,7 +76,15 @@ module.exports = {
       // Encrypt the access and refresh tokens and store them securely.
       // database like supabase or appwrite
 
-      req.status(200).json({
+      res.cookie("myCookie", token.merchantId, {
+        maxAge: 900000,
+        httpOnly: true,
+        sameSite: "strict",
+        path: "/",
+        secure: process.env.ENVIRONMENT,
+      });
+
+      res.json({
         expiresAt: token.expiresAt,
         tokenInfo: {
           tokenType: token.tokenType,
@@ -118,19 +128,42 @@ module.exports = {
     }
   },
   getUsers: async (req, res) => {
-    try{
+    try {
+      const result = await client.customers.list({});
 
-      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
-      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
-
-      const collection = db.collection("Users");
-
-      const users = await collection.find({}).toArray();
-
-      res.status(200).json(users);
-
-    }catch(err){
+      console.log(result.data);
+      //   id: '',
+      // createdAt: '',
+      // updatedAt: '',
+      // givenName: 'car make',
+      // familyName: 'state',
+      // emailAddress: 'email',
+      // address: {
+      //   addressLine1: 'address',
+      //   locality: 'city',
+      //   administrativeDistrictLevel1: 'state abbr',
+      //   postalCode: 'zip',
+      //   country: 'country'
+      // },
+      // companyName: 'company name',
+      // preferences: { emailUnsubscribed: false },
+      // creationSource: 'DIRECTORY',
+      // segmentIds: [
+      //   '',
+      //   '',
+      //   ''
+      // ],
+      // version: 3n
+    } catch (err) {
       console.error(err);
     }
-  }
+  },
+  getCookie: async (req, res) => {
+    try {
+      const cookieValue = req.cookies.myCookie;
+      res.json({ merchantId: cookieValue });
+    } catch (err) {
+      console.error(err);
+    }
+  },
 };

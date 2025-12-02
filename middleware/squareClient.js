@@ -12,7 +12,7 @@ const client = new SquareClient({
 });
 
 const oauthClient = new SquareClient({
-    token: process.env.ACCESS_TOKEN,
+  token: process.env.ACCESS_TOKEN,
 });
 
 module.exports = { client, oauthClient };
