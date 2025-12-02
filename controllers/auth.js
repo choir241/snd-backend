@@ -1,18 +1,8 @@
-const express = require("express");
-const { SquareError } = require("square");
-const client = require("../middleware/squareClient");
 require("dotenv").config();
-const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
-const { ApiError, Client, Environment } = require("square");
-const app = express();
-
-const squareClient = new Client({
-    environment: Environment,
-    userAgentDetail: "sample oath app"
-})
-
-const oauthInstance = squareClient.oAuthApi;
+const { oauthClient } = require('../middleware/squareClient');
+const { URL } = require('url');
+const { URLSearchParams } = require('url');
 
 const scopes = [
   "ITEMS_READ",
@@ -26,10 +16,8 @@ module.exports = {
   generateToken: async (req, res) => {
     try {
       const state = crypto.randomBytes(32).toString("hex");
-      const basePath = "https://connect.squareup.com";
       const url =
-        basePath +
-        `/oauth2/authorize?client_id=${process.env.APP_ID}&` +
+        `https://connect.squareup.com/oauth2/authorize?client_id=${process.env.APP_ID}&` +
         `response_type=code&` +
         `scope=${scopes.join("+")}` +
         `&state=` +
@@ -42,7 +30,25 @@ module.exports = {
   },
   callback: async (req, res) => {
     try {
-    
+      const url = new URL(req.originalUrl, `http://${req.headers.host}`);
+      const params = new URLSearchParams(url.search);
+
+      const code = params.get('code');
+
+      if (!code) {
+        return res.status(400).json({ error: 'Auth code missing' });
+      }
+
+      const token = await oauthClient.oAuth.obtainToken({
+        clientId: process.env.APP_ID,
+        clientSecret: process.env.APP_SECRET,
+        code: code,
+        grantType: "authorization_code"
+      })
+
+      res.json({ token: token });
+
+      // {"token":{"accessToken":"","tokenType":"bearer","expiresAt":""","merchantId":"","refreshToken":"","shortLived":false}}
     } catch (err) {
       console.error(err);
     }

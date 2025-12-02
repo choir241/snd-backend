@@ -1,4 +1,4 @@
-const { SquareClient } = require("square");
+const { SquareClient, Environment } = require("square");
 require("dotenv").config();
 
 const client = new SquareClient({
@@ -11,4 +11,8 @@ const client = new SquareClient({
   ],
 });
 
-module.exports = client;
+const oauthClient = new SquareClient({
+    token: process.env.ACCESS_TOKEN,
+});
+
+module.exports = { client, oauthClient };
