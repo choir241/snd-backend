@@ -4,6 +4,7 @@ const { oauthClient, client } = require("../middleware/squareClient");
 const { URL } = require("url");
 const { URLSearchParams } = require("url");
 const { MongoClient } = require("mongodb");
+const { handleErrorMessage } = require("../hooks/handleErrorMessage");
 
 const scopes = [
   "ITEMS_READ",
@@ -27,21 +28,24 @@ module.exports = {
 
       res.json({ url });
     } catch (err) {
-      console.error(err);
+      handleErrorMessage(
+        res,
+        `There was a error generating a token: ${err.message}`,
+      );
     }
   },
   callback: async (req, res) => {
     try {
       const connectMongoClient = new MongoClient(process.env.MONGO_URI);
+      await connectMongoClient.connect();
+
       const url = new URL(req.originalUrl, `http://${req.headers.host}`);
       const params = new URLSearchParams(url.search);
-
-      console.log(req);
 
       const code = params.get("code");
 
       if (!code) {
-        return res.status(400).json({ error: "Auth code missing" });
+        handleErrorMessage(res, "Auth code missing");
       }
 
       const token = await oauthClient.oAuth.obtainToken({
@@ -50,6 +54,10 @@ module.exports = {
         code: code,
         grantType: "authorization_code",
       });
+
+      if (!token) {
+        handleErrorMessage(res, "OAuth token missing");
+      }
 
       const db = connectMongoClient.db("Supreme-Nomads-Detailing");
 
@@ -64,41 +72,34 @@ module.exports = {
         updatedAt: new Date(),
       });
 
+      await connectMongoClient.close();
+
       if (user) {
         console.log({
           message: "User was successfully added to the database.",
         });
+        res.redirect(process.env.FRONTEND_URL);
+      } else {
+        handleErrorMessage(
+          res,
+          "User was not successfully added to the database.",
+        );
       }
-
-      // {"token":{"accessToken":"","tokenType":"bearer","expiresAt":""","merchantId":"","refreshToken":"","shortLived":false}}
 
       // Manage and use the access and refresh tokens securely.
       // Encrypt the access and refresh tokens and store them securely.
       // database like supabase or appwrite
-
-      res.cookie("myCookie", token.merchantId, {
-        maxAge: 900000,
-        httpOnly: true,
-        sameSite: "strict",
-        path: "/",
-        secure: process.env.ENVIRONMENT,
-      });
-
-      res.json({
-        expiresAt: token.expiresAt,
-        tokenInfo: {
-          tokenType: token.tokenType,
-          shortLived: token.shortLived,
-        },
-      });
-
       // Verify that the token used for each API call is valid.
+
       // Refresh the access token in a timely manner.
       // Provide the seller with the ability to revoke the access and refresh tokens.
       // Show the permissions granted by the access token to the seller and enable them to manage authorization.
       // Ensure that API calls made with the seller's tokens can handle token-based errors appropriately.
     } catch (err) {
-      console.error(err);
+      handleErrorMessage(
+        res,
+        `A problem occured during the oAuth callback URL: ${err.message}`,
+      );
     }
   },
   refreshToken: async (req, res) => {
@@ -114,7 +115,10 @@ module.exports = {
 
       res.json(token);
     } catch (err) {
-      console.error(err);
+      handleErrorMessage(
+        res,
+        `A problem occured refreshing the oAuth token: ${err.message}`,
+      );
     }
   },
   revokeToken: async (req, res) => {
@@ -124,46 +128,10 @@ module.exports = {
         clientId: process.env.APP_ID,
       });
     } catch (err) {
-      console.error(err);
-    }
-  },
-  getUsers: async (req, res) => {
-    try {
-      const result = await client.customers.list({});
-
-      console.log(result.data);
-      //   id: '',
-      // createdAt: '',
-      // updatedAt: '',
-      // givenName: 'car make',
-      // familyName: 'state',
-      // emailAddress: 'email',
-      // address: {
-      //   addressLine1: 'address',
-      //   locality: 'city',
-      //   administrativeDistrictLevel1: 'state abbr',
-      //   postalCode: 'zip',
-      //   country: 'country'
-      // },
-      // companyName: 'company name',
-      // preferences: { emailUnsubscribed: false },
-      // creationSource: 'DIRECTORY',
-      // segmentIds: [
-      //   '',
-      //   '',
-      //   ''
-      // ],
-      // version: 3n
-    } catch (err) {
-      console.error(err);
-    }
-  },
-  getCookie: async (req, res) => {
-    try {
-      const cookieValue = req.cookies.myCookie;
-      res.json({ merchantId: cookieValue });
-    } catch (err) {
-      console.error(err);
+      handleErrorMessage(
+        res,
+        `A problem occured revoking OAuth token: ${err.message}`,
+      );
     }
   },
 };

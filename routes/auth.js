@@ -6,7 +6,5 @@ router.get("/generateToken", authController.generateToken);
 router.get("/callback", authController.callback);
 router.get("/refreshToken", authController.refreshToken);
 router.get("/revokeToken", authController.revokeToken);
-router.get("/getUsers", authController.getUsers);
-router.get("/getCookie", authController.getCookie);
 
 module.exports = router;

@@ -1,4 +1,4 @@
-const { SquareClient, Environment } = require("square");
+const { SquareClient } = require("square");
 require("dotenv").config();
 
 const client = new SquareClient({

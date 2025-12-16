@@ -1,5 +1,5 @@
-const { SquareError } = require("square");
 const { client } = require("../middleware/squareClient");
+const { handleErrorMessage } = require("../hooks/handleErrorMessage");
 
 module.exports = {
   getPackages: async (req, res) => {
@@ -8,8 +8,59 @@ module.exports = {
         productTypes: ["APPOINTMENTS_SERVICE"],
       });
 
-      let packageList;
-      packageList = catalogList.items.map((item) => {
+      if (!catalogList) {
+        handleErrorMessage(
+          res,
+          "There was an error grabbing the appointment service type catalog list.",
+        );
+      }
+
+      const result = await client.catalog.list({});
+
+      if (!result) {
+        handleErrorMessage(
+          res,
+          "There was an error grabbing the catalog list for the modifier list.",
+        );
+      }
+
+      const modifiersFiltered = result.data.filter((catalog) => {
+        if (catalog.type === "MODIFIER_LIST") {
+          return catalog;
+        }
+      });
+
+      if (!modifiersFiltered.length) {
+        handleErrorMessage(
+          res,
+          "There was an error filtering out the modifier list.",
+        );
+      }
+
+      const modifiers = modifiersFiltered[0].modifierListData.modifiers.map(
+        (modifierList) => {
+          if (modifierList.modifierData) {
+            return {
+              id: modifierList.id,
+              updatedAt: modifierList.updatedAt,
+              createdAt: modifierList.created_at,
+              name: modifierList.modifierData.name,
+              modifierListId: modifierList.modifierData.modifierListId,
+              priceAmt: `${modifierList.modifierData.priceMoney.amount}`,
+              priceCurr: modifierList.modifierData.priceMoney.currency,
+            };
+          }
+        },
+      );
+
+      if (!modifiers.length) {
+        handleErrorMessage(
+          res,
+          "There was an error creating the modifiers list.",
+        );
+      }
+
+      const packageList = catalogList.items.map((item) => {
         const variations = item.itemData.variations.map((variation) => {
           if (variation.itemVariationData.priceMoney) {
             return {
@@ -36,28 +87,43 @@ module.exports = {
           }
         });
 
-        return {
-          descriptionPlaintext: item.itemData.descriptionPlaintext,
-          descriptionHtml: item.itemData.descriptionHtml,
-          name: item.itemData.name,
-          variations: variations,
-        };
+        if (item.itemData.modifierListInfo) {
+          const modifierListId = item.itemData.modifierListInfo.map(
+            (modifierList) => {
+              return {
+                modifierListId: modifierList.modifierListId,
+                enabled: modifierList.enabled,
+              };
+            },
+          );
+
+          return {
+            modifierListId: modifierListId,
+            descriptionPlaintext: item.itemData.descriptionPlaintext,
+            descriptionHtml: item.itemData.descriptionHtml,
+            name: item.itemData.name,
+            variations: variations,
+          };
+        } else {
+          return {
+            descriptionPlaintext: item.itemData.descriptionPlaintext,
+            descriptionHtml: item.itemData.descriptionHtml,
+            name: item.itemData.name,
+            variations: variations,
+          };
+        }
       });
 
-      res.json({ packageList: packageList });
-    } catch (error) {
-      if (error instanceof SquareError) {
-        error.errors.forEach(function (e) {
-          console.error(e.category);
-          console.error(e.code);
-          console.error(e.detail);
-        });
-        console.error(
-          `There was an issue fetching the package catalogs - ${error}`,
-        );
-      } else {
-        console.error("Unexpected error occurred: ", error);
+      if (!packageList.length) {
+        handleErrorMessage(res, "There was an error creating the package list");
       }
+
+      res.json({ packageList: packageList, modifierList: modifiers });
+    } catch (err) {
+      handleErrorMessage(
+        res,
+        `There was an error grabbing the package list: ${err.message}`,
+      );
     }
   },
 };
