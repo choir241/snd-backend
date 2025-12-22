@@ -88,17 +88,18 @@ module.exports = {
         });
 
         if (item.itemData.modifierListInfo) {
-          const modifierListId = item.itemData.modifierListInfo.map(
+          const modifiers = item.itemData.modifierListInfo.map(
             (modifierList) => {
-              return {
-                modifierListId: modifierList.modifierListId,
-                enabled: modifierList.enabled,
-              };
+              if (modifierList) {
+                if (modifierList.modifierOverrides) {
+                  return modifierList.modifierOverrides;
+                }
+              }
             },
           );
 
           return {
-            modifierListId: modifierListId,
+            modifiers: modifiers[0],
             descriptionPlaintext: item.itemData.descriptionPlaintext,
             descriptionHtml: item.itemData.descriptionHtml,
             name: item.itemData.name,
