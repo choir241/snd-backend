@@ -24,13 +24,15 @@ module.exports = {
 
       const getAppointments = searchAvailability.availabilities.map(
         (availability) => {
-          return availability.appointmentSegments.map((variation) => {
-            return {
-              durationMinutes: variation.durationMinutes,
-              teamMemberId: variation.teamMemberId,
-              serviceVariationId: variation.serviceVariationId,
-            };
-          });
+          const variationId =
+            availability.appointmentSegments[0].serviceVariationId;
+          const durationMinutes =
+            availability.appointmentSegments[0].durationMinutes;
+          return {
+            startAt: availability.startAt,
+            variationId: variationId,
+            durationMinutes: durationMinutes,
+          };
         },
       );
 
