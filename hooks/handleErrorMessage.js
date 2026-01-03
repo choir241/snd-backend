@@ -1,7 +1,9 @@
-function handleErrorMessage(res, errorMsg) {
-  res.redirect(process.env.FRONTEND_URL);
+function handleErrorMessage(errorMsg, variableValue = "", variable = "") {
   console.error(errorMsg);
-  return res.status(400).json({ error: errorMsg });
+  if (variable && variableValue) {
+    console.log(`${variable} logged: ${variableValue}`);
+  }
+  throw new Error(`${errorMsg}`);
 }
 
 module.exports = { handleErrorMessage };
