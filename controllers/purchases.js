@@ -29,7 +29,6 @@ module.exports = {
       res.redirect(process.env.FRONTEND_URL);
     } catch (err) {
       handleErrorMessage(
-        res,
         `Something went wrong with your payment: ${err.message}`,
       );
     }

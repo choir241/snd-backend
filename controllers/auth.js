@@ -1,6 +1,6 @@
 require("dotenv").config();
 const crypto = require("crypto");
-const { oauthClient, client } = require("../middleware/squareClient");
+const { oauthClient } = require("../middleware/squareClient");
 const { URL } = require("url");
 const { URLSearchParams } = require("url");
 const { MongoClient } = require("mongodb");
@@ -29,7 +29,6 @@ module.exports = {
       res.json({ url });
     } catch (err) {
       handleErrorMessage(
-        res,
         `There was a error generating a token: ${err.message}`,
       );
     }
@@ -45,7 +44,7 @@ module.exports = {
       const code = params.get("code");
 
       if (!code) {
-        handleErrorMessage(res, "Auth code missing");
+        handleErrorMessage("Auth code missing", code, "code");
       }
 
       const token = await oauthClient.oAuth.obtainToken({
@@ -56,7 +55,7 @@ module.exports = {
       });
 
       if (!token) {
-        handleErrorMessage(res, "OAuth token missing");
+        handleErrorMessage("OAuth token missing", token, "token");
       }
 
       const db = connectMongoClient.db("Supreme-Nomads-Detailing");
@@ -64,10 +63,10 @@ module.exports = {
       const collection = db.collection("Users");
 
       const user = await collection.insertOne({
+        oAuthCode: code,
         accessToken: token.accessToken,
         refreshToken: token.refreshToken,
         expiresAt: token.expiresAt,
-        merchantId: token.merchantId,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -78,26 +77,20 @@ module.exports = {
         console.log({
           message: "User was successfully added to the database.",
         });
-        res.redirect(process.env.FRONTEND_URL);
+
+        res.redirect(`${process.env.FRONTEND_URL}/checkout`);
       } else {
         handleErrorMessage(
-          res,
           "User was not successfully added to the database.",
+          user,
+          "user",
         );
       }
 
-      // Manage and use the access and refresh tokens securely.
-      // Encrypt the access and refresh tokens and store them securely.
-      // database like supabase or appwrite
-      // Verify that the token used for each API call is valid.
-
-      // Refresh the access token in a timely manner.
+      // TODO
       // Provide the seller with the ability to revoke the access and refresh tokens.
-      // Show the permissions granted by the access token to the seller and enable them to manage authorization.
-      // Ensure that API calls made with the seller's tokens can handle token-based errors appropriately.
     } catch (err) {
       handleErrorMessage(
-        res,
         `A problem occured during the oAuth callback URL: ${err.message}`,
       );
     }
@@ -106,17 +99,29 @@ module.exports = {
     try {
       const refreshToken = req.body.refreshToken;
 
+      if (!refreshToken) {
+        handleErrorMessage(
+          "Unable to grab refresh token from frontend",
+          refreshToken,
+          "refreshToken",
+        );
+      }
+
       const token = await oauthClient.oAuth.obtainToken({
+        code: req.body.oAuthCode,
         clientId: process.env.APP_ID,
         clientSecret: process.env.APP_SECRET,
         refreshToken: refreshToken,
         grantType: "refresh_token",
       });
 
+      if (!token) {
+        handleErrorMessage("Unable to obtain squareup token", token, "token");
+      }
+
       res.json(token);
     } catch (err) {
       handleErrorMessage(
-        res,
         `A problem occured refreshing the oAuth token: ${err.message}`,
       );
     }
@@ -127,10 +132,75 @@ module.exports = {
         accessToken: process.env.ACCESS_TOKEN,
         clientId: process.env.APP_ID,
       });
+
+      if (!token) {
+        handleErrorMessage("Unable to grab revoke token", token, "token");
+      }
     } catch (err) {
       handleErrorMessage(
-        res,
         `A problem occured revoking OAuth token: ${err.message}`,
+      );
+    }
+  },
+  getCurrUser: async (req, res) => {
+    try {
+      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
+
+      if (!connectMongoClient) {
+        handleErrorMessage(
+          `A problem occured initializing Mongoclient`,
+          connectMongoClient,
+          "connectMongoClient",
+        );
+      }
+
+      const connect = await connectMongoClient.connect();
+
+      if (!connect) {
+        handleErrorMessage(
+          `A problem occured connecting to MongoDB client`,
+          connect,
+          "connect",
+        );
+      }
+
+      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
+
+      const collection = db.collection("Users");
+
+      const users = await collection.find({}).toArray();
+
+      if (!users) {
+        handleErrorMessage(`A problem occured grabbing users`);
+      }
+
+      const oAuthCode = req.body.oAuthCode;
+
+      if (!oAuthCode) {
+        handleErrorMessage(
+          `A problem occured grabbing the oAuthCode from the frontend`,
+        );
+      }
+
+      const findCurrUser = users.find((user) => {
+        return user.oAuthCode === oAuthCode;
+      });
+
+      if (!findCurrUser) {
+        handleErrorMessage(
+          `Couldn't find current user`,
+          findCurrUser,
+          "findCurrUser",
+        );
+      }
+
+      res.json({
+        refreshToken: findCurrUser.refreshToken,
+        expiresAt: findCurrUser.expiresAt,
+      });
+    } catch (err) {
+      handleErrorMessage(
+        `A problem occured getting the current user: ${err.message}`,
       );
     }
   },

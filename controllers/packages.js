@@ -10,7 +10,6 @@ module.exports = {
 
       if (!catalogList) {
         handleErrorMessage(
-          res,
           "There was an error grabbing the appointment service type catalog list.",
         );
       }
@@ -19,7 +18,6 @@ module.exports = {
 
       if (!result) {
         handleErrorMessage(
-          res,
           "There was an error grabbing the catalog list for the modifier list.",
         );
       }
@@ -32,7 +30,6 @@ module.exports = {
 
       if (!modifiersFiltered.length) {
         handleErrorMessage(
-          res,
           "There was an error filtering out the modifier list.",
         );
       }
@@ -54,10 +51,7 @@ module.exports = {
       );
 
       if (!modifiers.length) {
-        handleErrorMessage(
-          res,
-          "There was an error creating the modifiers list.",
-        );
+        handleErrorMessage("There was an error creating the modifiers list.");
       }
 
       const packageList = catalogList.items.map((item) => {
@@ -116,13 +110,12 @@ module.exports = {
       });
 
       if (!packageList.length) {
-        handleErrorMessage(res, "There was an error creating the package list");
+        handleErrorMessage("There was an error creating the package list");
       }
 
       res.json({ packageList: packageList, modifierList: modifiers });
     } catch (err) {
       handleErrorMessage(
-        res,
         `There was an error grabbing the package list: ${err.message}`,
       );
     }

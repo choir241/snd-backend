@@ -39,7 +39,6 @@ module.exports = {
       res.json({ appts: getAppointments });
     } catch (error) {
       handleErrorMessage(
-        res,
         `There was an error searching for the merchants availability: ${error.message}`,
       );
     }
