@@ -7,11 +7,13 @@ const { MongoClient } = require("mongodb");
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
 
 const scopes = [
-  "ITEMS_READ",
-  "MERCHANT_PROFILE_READ",
-  "PAYMENTS_WRITE_ADDITIONAL_RECIPIENTS",
-  "PAYMENTS_WRITE",
-  "PAYMENTS_READ",
+  // ... existing scopes ...
+  "ORDERS_READ",
+  "ORDERS_WRITE",
+  "INVOICES_READ",
+  "INVOICES_WRITE",
+  "CUSTOMERS_READ",
+  "CUSTOMERS_WRITE",
 ];
 
 module.exports = {
@@ -77,6 +79,7 @@ module.exports = {
         console.log({
           message: "User was successfully added to the database.",
         });
+        res.json({ authCode: code });
 
         res.redirect(`${process.env.FRONTEND_URL}/checkout`);
       } else {

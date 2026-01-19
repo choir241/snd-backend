@@ -43,4 +43,47 @@ module.exports = {
       );
     }
   },
+  createBooking: async (req, res) => {
+    try {
+      const { customerId, startAt, locationId, appointmentSegments } = req.body;
+
+      // Validate required fields
+      if (!customerId || !startAt || !locationId || !appointmentSegments) {
+        return res.status(400).json({
+          error:
+            "Missing required fields: customerId, startAt, locationId, and appointmentSegments are required",
+        });
+      }
+      // Convert serviceVariationVersion to BigInt if it exists
+      const processedSegments = appointmentSegments.map((segment) => ({
+        ...segment,
+        ...(segment.serviceVariationVersion && {
+          serviceVariationVersion: BigInt(segment.serviceVariationVersion),
+        }),
+      }));
+
+      const bookingData = {
+        booking: {
+          customerId,
+          startAt,
+          locationId,
+          appointmentSegments: processedSegments,
+        },
+        idempotencyKey: crypto.randomUUID(),
+      };
+
+      const response = await client.bookings.create(bookingData);
+
+      res.json({
+        success: true,
+        booking: response.booking.status,
+      });
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      res.status(500).json({
+        error: error.message,
+        ...(error.errors && { details: error.errors }),
+      });
+    }
+  },
 };

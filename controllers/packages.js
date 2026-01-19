@@ -98,6 +98,7 @@ module.exports = {
             descriptionHtml: item.itemData.descriptionHtml,
             name: item.itemData.name,
             variations: variations,
+            version: `${item.version}`,
           };
         } else {
           return {
@@ -105,6 +106,7 @@ module.exports = {
             descriptionHtml: item.itemData.descriptionHtml,
             name: item.itemData.name,
             variations: variations,
+            version: `${item.version}`,
           };
         }
       });

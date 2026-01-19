@@ -6,6 +6,10 @@ const bookingsRoutes = require("./routes/bookings");
 const purchasesRoutes = require("./routes/purchases");
 const authRoutes = require("./routes/auth");
 const customerRoutes = require("./routes/customer");
+const orderRoutes = require("./routes/orders");
+const webhookRoutes = require("./webhooks/square");
+const teamMembersRoutes = require("./routes/teamMembers");
+
 require("dotenv").config();
 
 app.use(cors());
@@ -20,6 +24,13 @@ app.use(
   purchasesRoutes,
   authRoutes,
   customerRoutes,
+  orderRoutes,
+  teamMembersRoutes,
+);
+app.post(
+  "/webhooks/square",
+  express.raw({ type: "application/json" }),
+  webhookRoutes.handleOrderWebhook,
 );
 
 app.listen(process.env.PORT, () => {
