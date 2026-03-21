@@ -33,6 +33,15 @@ app.post(
   webhookRoutes.handleOrderWebhook,
 );
 
+console.log("PORT", process.env.PORT);
+console.log("ACCESS_TOKEN", process.env.ACCESS_TOKEN);
+console.log("LOCATION_ID", process.env.LOCATION_ID);
+console.log("APP_SECRET", process.env.APP_SECRET);
+console.log("APP_ID", process.env.APP_ID);
+console.log("ENVIRONMENT", process.env.ENVIRONMENT);
+console.log("MONGO_URI", process.env.MONGO_URI);
+console.log("FRONTEND_URL", process.env.FRONTEND_URL);
+
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on PORT ${process.env.PORT}`);
 });
