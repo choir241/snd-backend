@@ -23,6 +23,8 @@ module.exports = {
         discounts = [],
       } = req.body;
 
+      console.log("req.body", req.body);
+
       const order = {
         idempotencyKey,
         order: {
@@ -92,7 +94,10 @@ module.exports = {
         },
       };
 
+      console.log("order", order);
+
       const response = await client.orders.create(order);
+      console.log("response", response);
       res.json({ success: true, orderId: response.order.id });
     } catch (error) {
       console.error("Order creation error:", error);
