@@ -1,6 +1,7 @@
 const { client } = require("../middleware/squareClient");
 require("dotenv").config();
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
+const { getUserClient } = require("../hooks/getUserClient");
 
 module.exports = {
   searchAvailability: async (req, res) => {
@@ -45,7 +46,13 @@ module.exports = {
   },
   createBooking: async (req, res) => {
     try {
-      const { customerId, startAt, locationId, appointmentSegments } = req.body;
+      const { userId, customerId, startAt, locationId, appointmentSegments } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const userClient = await getUserClient(userId);
 
       // Validate required fields
       if (!customerId || !startAt || !locationId || !appointmentSegments) {
@@ -72,7 +79,7 @@ module.exports = {
         idempotencyKey: crypto.randomUUID(),
       };
 
-      const response = await client.bookings.create(bookingData);
+      const response = await userClient.bookings.create(bookingData);
 
       res.json({
         success: true,

@@ -1,11 +1,20 @@
 const { client } = require("../middleware/squareClient");
 require("dotenv").config();
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
+const { getUserClient } = require("../hooks/getUserClient");
 
 module.exports = {
   createCustomer: async (req, res) => {
     try {
-      const response = await client.customers.create({
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const userClient = await getUserClient(userId);
+
+      const response = await userClient.customers.create({
         givenName: req.body.firstName,
         familyName: req.body.lastName,
         emailAddress: req.body.email,
@@ -45,10 +54,17 @@ module.exports = {
       );
     }
   },
-  // Add this new function to the exports object in controllers/customer.js
   getCustomers: async (req, res) => {
     try {
-      const response = await client.customers.list({});
+      const userId = req.query.userId || req.body.userId;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const userClient = await getUserClient(userId);
+
+      const response = await userClient.customers.list({});
 
       if (!response.data.length) {
         return res.status(400).json({

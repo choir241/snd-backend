@@ -1,10 +1,36 @@
 // controllers/orders.js
-const { client } = require("../middleware/squareClient");
+const { SquareClient, SquareEnvironment } = require("square");
+const { MongoClient } = require("mongodb");
 const crypto = require("crypto");
 
 module.exports = {
   createOrder: async (req, res) => {
     try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
+      await connectMongoClient.connect();
+
+      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
+      const collection = db.collection("Users");
+
+      const user = await collection.findOne({ userId });
+
+      await connectMongoClient.close();
+
+      if (!user || !user.accessToken) {
+        return res.status(404).json({ error: "User or access token not found" });
+      }
+
+      const userClient = new SquareClient({
+        token: user.accessToken,
+        environment: SquareEnvironment.Production,
+      });
+
       function generateReferenceId(prefix = "ORDER") {
         const timestamp = Date.now();
         const random = Math.floor(Math.random() * 10000)
@@ -96,7 +122,7 @@ module.exports = {
 
       console.log("order", order);
 
-      const response = await client.orders.create(order);
+      const response = await userClient.orders.create(order);
       console.log("response", response);
       res.json({ success: true, orderId: response.order.id });
     } catch (error) {

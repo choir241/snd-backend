@@ -1,11 +1,18 @@
 // controllers/teamMembers.js
 const { client } = require("../middleware/squareClient");
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
+const { getUserClient } = require("../hooks/getUserClient");
 
 module.exports = {
   searchTeamMembers: async (req, res) => {
     try {
-      const { status = "ACTIVE", limit = 10 } = req.query;
+      const { userId, status = "ACTIVE", limit = 10 } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const userClient = await getUserClient(userId);
 
       const locationId = process.env.LOCATION_ID;
 
@@ -13,7 +20,7 @@ module.exports = {
         return res.status(400).json({ error: "locationId is required" });
       }
 
-      const response = await client.teamMembers.search({
+      const response = await userClient.teamMembers.search({
         query: {
           filter: {
             locationIds: [locationId],

@@ -7,5 +7,7 @@ router.get("/callback", authController.callback);
 router.get("/refreshToken", authController.refreshToken);
 router.get("/revokeToken", authController.revokeToken);
 router.post("/getCurrUser", authController.getCurrUser);
+router.post("/createJWT", authController.createJWT);
+router.get("/getJWT", authController.getJWT);
 
 module.exports = router;

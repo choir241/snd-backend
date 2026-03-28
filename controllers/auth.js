@@ -3,8 +3,9 @@ const crypto = require("crypto");
 const { oauthClient } = require("../middleware/squareClient");
 const { URL } = require("url");
 const { URLSearchParams } = require("url");
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
+const { createJWT, verifyJWT } = require("../utils/jwt");
 
 const scopes = [
   // ... existing scopes ...
@@ -64,7 +65,11 @@ module.exports = {
 
       const collection = db.collection("Users");
 
+      const userId = new ObjectId();
+
       const user = await collection.insertOne({
+        _id: userId,
+        userId: userId.toString(),
         oAuthCode: code,
         accessToken: token.accessToken,
         refreshToken: token.refreshToken,
@@ -73,13 +78,25 @@ module.exports = {
         updatedAt: new Date(),
       });
 
+      const jwtToken = createJWT({
+        userId: userId.toString(),
+        oAuthCode: code,
+      });
+
+      res.cookie("jwt_token", jwtToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
       await connectMongoClient.close();
 
       if (user) {
         console.log({
           message: "User was successfully added to the database.",
         });
-        res.json({ authCode: code });
+        res.json({ authCode: code, jwtToken });
 
         res.redirect(`${process.env.FRONTEND_URL}/checkout`);
       } else {
@@ -204,6 +221,103 @@ module.exports = {
     } catch (err) {
       handleErrorMessage(
         `A problem occured getting the current user: ${err.message}`,
+      );
+    }
+  },
+  createJWT: async (req, res) => {
+    try {
+      const { oAuthCode, accessToken, refreshToken, expiresAt } = req.body;
+
+      if (!oAuthCode || !accessToken || !refreshToken) {
+        return res.status(400).json({
+          error: "Missing required fields: oAuthCode, accessToken, refreshToken",
+        });
+      }
+
+      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
+      await connectMongoClient.connect();
+
+      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
+      const collection = db.collection("Users");
+
+      const userId = new ObjectId();
+
+      const user = await collection.insertOne({
+        _id: userId,
+        userId: userId.toString(),
+        oAuthCode,
+        accessToken,
+        refreshToken,
+        expiresAt: expiresAt || new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const jwtToken = createJWT({
+        userId: userId.toString(),
+        oAuthCode,
+      });
+
+      res.cookie("jwt_token", jwtToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      await connectMongoClient.close();
+
+      res.json({
+        message: "JWT created and stored successfully",
+        jwtToken,
+        userId: userId.toString(),
+        user,
+      });
+    } catch (err) {
+      handleErrorMessage(
+        `A problem occured creating JWT: ${err.message}`,
+      );
+    }
+  },
+  getJWT: async (req, res) => {
+    try {
+      const token = req.cookies.jwt_token;
+
+      if (!token) {
+        return res.status(401).json({ error: "No JWT token found" });
+      }
+
+      const decoded = verifyJWT(token);
+      const { userId } = decoded;
+
+      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
+      await connectMongoClient.connect();
+
+      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
+      const collection = db.collection("Users");
+
+      const user = await collection.findOne({ userId });
+
+      await connectMongoClient.close();
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({
+        userId: user.userId,
+        oAuthCode: user.oAuthCode,
+        accessToken: user.accessToken,
+        refreshToken: user.refreshToken,
+        expiresAt: user.expiresAt,
+        createdAt: user.createdAt,
+      });
+    } catch (err) {
+      if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+        return res.status(401).json({ error: "Invalid or expired JWT token" });
+      }
+      handleErrorMessage(
+        `A problem occured getting JWT: ${err.message}`,
       );
     }
   },
