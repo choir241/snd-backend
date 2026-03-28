@@ -1,18 +1,9 @@
-const { SquareClient } = require("square");
+const { SquareClient, SquareEnvironment } = require("square");
 require("dotenv").config();
 
 const client = new SquareClient({
   token: process.env.ACCESS_TOKEN,
-  options: [
-    "curl https://connect.squareupsandbox.com/v2/catalog/list",
-    "-H 'Square-Version: 2024-07-17'",
-    "-H 'Authorization: Bearer {SANDBOX_ACCESS_TOKEN}'",
-    "-H 'Content-Type: application/json'",
-  ],
+  environment: SquareEnvironment.Production, // or Production
 });
 
-const oauthClient = new SquareClient({
-  token: process.env.ACCESS_TOKEN,
-});
-
-module.exports = { client, oauthClient };
+module.exports = { client };
