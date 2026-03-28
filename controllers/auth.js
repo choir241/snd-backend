@@ -234,24 +234,23 @@ module.exports = {
       console.log("[callback] JWT created:", jwtToken);
 
       console.log("[callback] Step 8: Setting JWT cookie");
-      console.log("[callback] Cookie options:", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: "7 days",
-      });
       console.log("[callback] FRONTEND_URL:", process.env.FRONTEND_URL);
       console.log("[callback] NODE_ENV:", process.env.NODE_ENV);
       
+      const isProduction = process.env.NODE_ENV === "production";
+      console.log("[callback] Is production:", isProduction);
+      
       res.cookie("jwt_token", jwtToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: false, // Set to true only if HTTPS is guaranteed
+        sameSite: "none", // Allow cross-origin cookies
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: "/",
+        domain: undefined, // Let browser set domain automatically
       });
-
-      console.log("[callback] Cookie set on response headers:", res.getHeaders()["set-cookie"]);
+      
+      const setCookieHeader = res.get("Set-Cookie");
+      console.log("[callback] Set-Cookie header:", setCookieHeader);
 
       console.log("[callback] Step 9: Closing MongoDB connection");
       await connectMongoClient.close();
