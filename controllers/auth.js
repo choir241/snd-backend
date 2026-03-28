@@ -1,11 +1,134 @@
 require("dotenv").config();
 const crypto = require("crypto");
-const { oauthClient } = require("../middleware/squareClient");
 const { URL } = require("url");
 const { URLSearchParams } = require("url");
 const { MongoClient, ObjectId } = require("mongodb");
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
 const { createJWT, verifyJWT } = require("../utils/jwt");
+
+const https = require("https");
+
+const obtainSquareToken = async (code) => {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({
+      client_id: process.env.APP_ID,
+      client_secret: process.env.APP_SECRET,
+      code: code,
+      grant_type: "authorization_code",
+    });
+
+    const options = {
+      hostname: "connect.squareup.com",
+      port: 443,
+      path: "/oauth2/token",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": data.length,
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let body = "";
+      res.on("data", (chunk) => (body += chunk));
+      res.on("end", () => {
+        try {
+          const response = JSON.parse(body);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(response);
+          } else {
+            reject(new Error(`Square API error: ${res.statusCode} - ${body}`));
+          }
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+};
+
+const refreshSquareToken = async (refreshToken) => {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({
+      client_id: process.env.APP_ID,
+      client_secret: process.env.APP_SECRET,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    });
+
+    const options = {
+      hostname: "connect.squareup.com",
+      port: 443,
+      path: "/oauth2/token",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": data.length,
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let body = "";
+      res.on("data", (chunk) => (body += chunk));
+      res.on("end", () => {
+        try {
+          const response = JSON.parse(body);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(response);
+          } else {
+            reject(new Error(`Square API error: ${res.statusCode} - ${body}`));
+          }
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+};
+
+const revokeSquareToken = async (accessToken) => {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({
+      client_id: process.env.APP_ID,
+      access_token: accessToken,
+    });
+
+    const options = {
+      hostname: "connect.squareup.com",
+      port: 443,
+      path: "/oauth2/revoke",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": data.length,
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let body = "";
+      res.on("data", (chunk) => (body += chunk));
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve({ success: true });
+        } else {
+          reject(new Error(`Square API error: ${res.statusCode} - ${body}`));
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+};
 
 const scopes = [
   // ... existing scopes ...
@@ -38,29 +161,39 @@ module.exports = {
   },
   callback: async (req, res) => {
     try {
+      console.log("[callback] Step 1: Starting callback process");
+      console.log("[callback] req.originalUrl:", req.originalUrl);
+      console.log("[callback] req.headers.host:", req.headers.host);
+
+      console.log("[callback] Step 2: Connecting to MongoDB");
       const connectMongoClient = new MongoClient(process.env.MONGO_URI);
       await connectMongoClient.connect();
+      console.log("[callback] MongoDB connected successfully");
 
       const url = new URL(req.originalUrl, `http://${req.headers.host}`);
       const params = new URLSearchParams(url.search);
 
       const code = params.get("code");
+      console.log("[callback] Step 3: Extracted code:", code ? "present" : "MISSING");
 
       if (!code) {
         handleErrorMessage("Auth code missing", code, "code");
       }
 
-      const token = await oauthClient.oAuth.obtainToken({
-        clientId: process.env.APP_ID,
-        clientSecret: process.env.APP_SECRET,
-        code: code,
-        grantType: "authorization_code",
-      });
+      console.log("[callback] Step 4: Calling Square obtainToken");
+      console.log("[callback] APP_ID:", process.env.APP_ID ? "present" : "MISSING");
+      console.log("[callback] APP_SECRET:", process.env.APP_SECRET ? "present" : "MISSING");
+
+      const token = await obtainSquareToken(code);
+
+      console.log("[callback] Step 5: Token obtained:", token ? "success" : "MISSING");
+      console.log("[callback] Token details:", token);
 
       if (!token) {
         handleErrorMessage("OAuth token missing", token, "token");
       }
 
+      console.log("[callback] Step 6: Inserting user into MongoDB");
       const db = connectMongoClient.db("Supreme-Nomads-Detailing");
 
       const collection = db.collection("Users");
@@ -78,11 +211,15 @@ module.exports = {
         updatedAt: new Date(),
       });
 
+      console.log("[callback] User inserted:", user);
+
+      console.log("[callback] Step 7: Creating JWT");
       const jwtToken = createJWT({
         userId: userId.toString(),
         oAuthCode: code,
       });
 
+      console.log("[callback] Step 8: Setting JWT cookie");
       res.cookie("jwt_token", jwtToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -90,12 +227,14 @@ module.exports = {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
+      console.log("[callback] Step 9: Closing MongoDB connection");
       await connectMongoClient.close();
 
       if (user) {
         console.log({
           message: "User was successfully added to the database.",
         });
+        console.log("[callback] Step 10: Redirecting to frontend");
         res.json({ authCode: code, jwtToken });
 
         res.redirect(`${process.env.FRONTEND_URL}/checkout`);
@@ -110,6 +249,10 @@ module.exports = {
       // TODO
       // Provide the seller with the ability to revoke the access and refresh tokens.
     } catch (err) {
+      console.error("[callback] ERROR:", err.message);
+      console.error("[callback] ERROR name:", err.name);
+      console.error("[callback] ERROR code:", err.code);
+      console.error("[callback] ERROR stack:", err.stack);
       handleErrorMessage(
         `A problem occured during the oAuth callback URL: ${err.message}`,
       );
@@ -117,23 +260,17 @@ module.exports = {
   },
   refreshToken: async (req, res) => {
     try {
-      const refreshToken = req.body.refreshToken;
+      const refreshTokenValue = req.body.refreshToken;
 
-      if (!refreshToken) {
+      if (!refreshTokenValue) {
         handleErrorMessage(
           "Unable to grab refresh token from frontend",
-          refreshToken,
+          refreshTokenValue,
           "refreshToken",
         );
       }
 
-      const token = await oauthClient.oAuth.obtainToken({
-        code: req.body.oAuthCode,
-        clientId: process.env.APP_ID,
-        clientSecret: process.env.APP_SECRET,
-        refreshToken: refreshToken,
-        grantType: "refresh_token",
-      });
+      const token = await refreshSquareToken(refreshTokenValue);
 
       if (!token) {
         handleErrorMessage("Unable to obtain squareup token", token, "token");
@@ -148,14 +285,15 @@ module.exports = {
   },
   revokeToken: async (req, res) => {
     try {
-      const token = await oauthClient.oAuth.revokeToken({
-        accessToken: process.env.ACCESS_TOKEN,
-        clientId: process.env.APP_ID,
-      });
+      const { accessToken } = req.body;
 
-      if (!token) {
-        handleErrorMessage("Unable to grab revoke token", token, "token");
+      if (!accessToken) {
+        return res.status(400).json({ error: "accessToken is required" });
       }
+
+      await revokeSquareToken(accessToken);
+
+      res.json({ success: true, message: "Token revoked successfully" });
     } catch (err) {
       handleErrorMessage(
         `A problem occured revoking OAuth token: ${err.message}`,
