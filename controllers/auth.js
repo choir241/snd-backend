@@ -182,7 +182,8 @@ module.exports = {
         throw mongoErr;
       }
 
-      const url = new URL(req.originalUrl, `http://${req.headers.host}`);
+      const cleanUrl = req.originalUrl.split("#")[0];
+      const url = new URL(cleanUrl, `http://${req.headers.host}`);
       const params = new URLSearchParams(url.search);
 
       const code = params.get("code");
@@ -248,7 +249,8 @@ module.exports = {
         });
         console.log("[callback] Step 10: Redirecting to frontend");
         
-        res.redirect(`${process.env.FRONTEND_URL}/checkout`);
+        const frontendUrl = process.env.FRONTEND_URL.replace(/\/$/, "");
+        res.redirect(`${frontendUrl}/checkout`);
       } else {
         handleErrorMessage(
           "User was not successfully added to the database.",
