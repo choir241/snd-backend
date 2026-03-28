@@ -1,0 +1,2 @@
+/*
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://connect.squareup.com https://connect.squareupsandbox.com https://app.squareup.com; frame-ancestors 'self' https://connect.squareup.com https://connect.squareupsandbox.com https://app.squareup.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'
