@@ -231,14 +231,27 @@ module.exports = {
         userId: userId.toString(),
         oAuthCode: code,
       });
+      console.log("[callback] JWT created:", jwtToken);
 
       console.log("[callback] Step 8: Setting JWT cookie");
+      console.log("[callback] Cookie options:", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: "7 days",
+      });
+      console.log("[callback] FRONTEND_URL:", process.env.FRONTEND_URL);
+      console.log("[callback] NODE_ENV:", process.env.NODE_ENV);
+      
       res.cookie("jwt_token", jwtToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: "/",
       });
+
+      console.log("[callback] Cookie set on response headers:", res.getHeaders()["set-cookie"]);
 
       console.log("[callback] Step 9: Closing MongoDB connection");
       await connectMongoClient.close();
@@ -432,29 +445,55 @@ module.exports = {
   },
   getJWT: async (req, res) => {
     try {
+      console.log("[getJWT] req.headers.cookie:", req.headers.cookie);
+      console.log("[getJWT] req.cookies:", req.cookies);
+      console.log("[getJWT] All cookies:", JSON.stringify(req.cookies));
+      
       const token = req.cookies.jwt_token;
-
+      console.log("[getJWT] token from cookie:", token ? "present" : "MISSING");
+      
       if (!token) {
-        return res.status(401).json({ error: "No JWT token found" });
+        console.log("[getJWT] No token found in cookies");
+        console.log("[getJWT] Available cookies:", Object.keys(req.cookies));
+        
+        const allCookies = req.headers.cookie;
+        console.log("[getJWT] Raw cookie header:", allCookies);
+        
+        return res.status(401).json({ 
+          error: "No JWT token found",
+          debug: {
+            hasCookieHeader: !!req.headers.cookie,
+            cookieKeys: Object.keys(req.cookies),
+          }
+        });
       }
 
+      console.log("[getJWT] Decoding token...");
       const decoded = verifyJWT(token);
+      console.log("[getJWT] Decoded:", decoded);
+      
       const { userId } = decoded;
+      console.log("[getJWT] Extracted userId:", userId);
 
+      console.log("[getJWT] Connecting to MongoDB...");
       const connectMongoClient = new MongoClient(process.env.MONGO_URI);
       await connectMongoClient.connect();
 
       const db = connectMongoClient.db("Supreme-Nomads-Detailing");
       const collection = db.collection("Users");
 
+      console.log("[getJWT] Finding user with userId:", userId);
       const user = await collection.findOne({ userId });
+      console.log("[getJWT] Found user:", user ? "yes" : "no");
 
       await connectMongoClient.close();
 
       if (!user) {
+        console.log("[getJWT] User not found in database");
         return res.status(404).json({ error: "User not found" });
       }
 
+      console.log("[getJWT] Success! Returning user data");
       res.json({
         userId: user.userId,
         oAuthCode: user.oAuthCode,
@@ -464,7 +503,12 @@ module.exports = {
         createdAt: user.createdAt,
       });
     } catch (err) {
+      console.error("[getJWT] ERROR:", err.message);
+      console.error("[getJWT] ERROR name:", err.name);
+      console.error("[getJWT] ERROR code:", err.code);
+      
       if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+        console.error("[getJWT] JWT verification failed");
         return res.status(401).json({ error: "Invalid or expired JWT token" });
       }
       handleErrorMessage(
