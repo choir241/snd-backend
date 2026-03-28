@@ -166,9 +166,21 @@ module.exports = {
       console.log("[callback] req.headers.host:", req.headers.host);
 
       console.log("[callback] Step 2: Connecting to MongoDB");
-      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
-      await connectMongoClient.connect();
-      console.log("[callback] MongoDB connected successfully");
+      console.log("[callback] MONGO_URI:", process.env.MONGO_URI ? "present" : "MISSING");
+      
+      const connectMongoClient = new MongoClient(process.env.MONGO_URI, {
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 10000,
+      });
+      
+      try {
+        await connectMongoClient.connect();
+        console.log("[callback] MongoDB connected successfully");
+      } catch (mongoErr) {
+        console.error("[callback] MongoDB connection error:", mongoErr.message);
+        console.error("[callback] MongoDB error code:", mongoErr.code);
+        throw mongoErr;
+      }
 
       const url = new URL(req.originalUrl, `http://${req.headers.host}`);
       const params = new URLSearchParams(url.search);
@@ -235,8 +247,7 @@ module.exports = {
           message: "User was successfully added to the database.",
         });
         console.log("[callback] Step 10: Redirecting to frontend");
-        res.json({ authCode: code, jwtToken });
-
+        
         res.redirect(`${process.env.FRONTEND_URL}/checkout`);
       } else {
         handleErrorMessage(
