@@ -233,36 +233,20 @@ module.exports = {
       });
       console.log("[callback] JWT created:", jwtToken);
 
-      console.log("[callback] Step 8: Setting JWT cookie");
-      console.log("[callback] FRONTEND_URL:", process.env.FRONTEND_URL);
-      console.log("[callback] NODE_ENV:", process.env.NODE_ENV);
-      
-      const isProduction = process.env.NODE_ENV === "production";
-      console.log("[callback] Is production:", isProduction);
-      
-      res.cookie("jwt_token", jwtToken, {
-        httpOnly: true,
-        secure: false, // Set to true only if HTTPS is guaranteed
-        sameSite: "none", // Allow cross-origin cookies
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: "/",
-        domain: undefined, // Let browser set domain automatically
-      });
-      
-      const setCookieHeader = res.get("Set-Cookie");
-      console.log("[callback] Set-Cookie header:", setCookieHeader);
-
-      console.log("[callback] Step 9: Closing MongoDB connection");
+      console.log("[callback] Step 8: Closing MongoDB connection");
       await connectMongoClient.close();
 
       if (user) {
         console.log({
           message: "User was successfully added to the database.",
         });
-        console.log("[callback] Step 10: Redirecting to frontend");
+        console.log("[callback] Step 9: Redirecting to frontend with JWT");
         
         const frontendUrl = process.env.FRONTEND_URL.replace(/\/$/, "");
-        res.redirect(`${frontendUrl}/checkout`);
+        const redirectUrl = `${frontendUrl}/checkout?jwt=${jwtToken}&userId=${userId.toString()}`;
+        console.log("[callback] Redirect URL:", redirectUrl);
+        
+        res.redirect(redirectUrl);
       } else {
         handleErrorMessage(
           "User was not successfully added to the database.",
