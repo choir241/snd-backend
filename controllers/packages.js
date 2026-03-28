@@ -55,6 +55,7 @@ module.exports = {
       }
 
       const packageList = catalogList.items.map((item) => {
+        if(item.itemData.productType === 'APPOINTMENTS_SERVICE') {
         const variations = item.itemData.variations.map((variation) => {
           if (variation.itemVariationData.priceMoney) {
             return {
@@ -109,7 +110,8 @@ module.exports = {
             version: `${item.version}`,
           };
         }
-      });
+      }
+        });
 
       if (!packageList.length) {
         handleErrorMessage("There was an error creating the package list");
