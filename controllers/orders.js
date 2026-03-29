@@ -1,9 +1,10 @@
 // controllers/orders.js
 const { SquareClient, SquareEnvironment } = require("square");
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 const crypto = require("crypto");
 const { getUserClient, getUserClientFromJWT } = require("../hooks/getUserClient");
-const { getUserIdFromRequest } = require("../hooks/jwtAuth");
+const { getUserIdFromRequest, extractUserIdFromJWT } = require("../hooks/jwtAuth");
+const { createUserClient } = require("../middleware/squareClient");
 
 module.exports = {
   createOrder: async (req, res) => {
@@ -16,11 +17,28 @@ module.exports = {
       
       console.log("[createOrder] Auth source:", source, "userId:", authUserId);
 
-      // Use JWT-based client
+      // Get user's Square access token from MongoDB
       const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
-      const userClient = token 
-        ? await getUserClientFromJWT(token)
-        : await getUserClient(authUserId);
+      
+      let userClient;
+      if (token) {
+        // Extract userId from JWT and fetch user's access token from MongoDB
+        const userIdFromJWT = extractUserIdFromJWT(req);
+        const mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+        const db = mongoClient.db("Supreme-Nomads-Detailing");
+        const collection = db.collection("Users");
+        const user = await collection.findOne({ userId: userIdFromJWT });
+        await mongoClient.close();
+        
+        if (!user || !user.accessToken) {
+          return res.status(401).json({ error: "Square access token not found. Please re-authenticate." });
+        }
+        
+        userClient = createUserClient(user.accessToken);
+      } else {
+        userClient = await getUserClient(authUserId);
+      }
 
       function generateReferenceId(prefix = "ORDER") {
         const timestamp = Date.now();
