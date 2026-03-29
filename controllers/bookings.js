@@ -87,7 +87,7 @@ module.exports = {
         if (segment.serviceVariationId) {
           try {
             console.log("[createBooking] Fetching catalog version for variationId:", segment.serviceVariationId);
-            const catalogResponse = await userClient.catalog.batchRetrieve({
+            const catalogResponse = await userClient.catalog.batchGet({
               objectIds: [segment.serviceVariationId],
             });
             console.log("[createBooking] Catalog response:", JSON.stringify(catalogResponse, (key, value) => {
