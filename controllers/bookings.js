@@ -87,28 +87,37 @@ module.exports = {
         if (segment.serviceVariationId) {
           try {
             console.log("[createBooking] Fetching catalog version for variationId:", segment.serviceVariationId);
-            const catalogResponse = await userClient.catalog.retrieve(segment.serviceVariationId);
-            console.log("[createBooking] Catalog response:", JSON.stringify(catalogResponse, null, 2));
+            const catalogResponse = await userClient.catalog.retrieveCatalogObject(segment.serviceVariationId);
+            console.log("[createBooking] Catalog response:", JSON.stringify(catalogResponse, (key, value) => {
+              if (typeof value === 'bigint') return value.toString();
+              return value;
+            }, 2));
             
             let currentVersion;
             if (catalogResponse.object?.type === "ITEM_VARIATION" && catalogResponse.object?.itemVariationData) {
               currentVersion = BigInt(catalogResponse.object.version);
-              console.log("[createBooking] Current catalog version:", currentVersion.toString());
-            } else if (catalogResponse.object?.itemVariationData) {
-              currentVersion = BigInt(catalogResponse.object.version);
-              console.log("[createBooking] Current catalog version:", currentVersion.toString());
+              console.log("[createBooking] Current catalog version from ITEM_VARIATION:", currentVersion.toString());
             } else {
-              console.log("[createBooking] Unexpected catalog response structure:", catalogResponse.object?.type);
+              console.log("[createBooking] Unexpected catalog response type:", catalogResponse.object?.type);
             }
             
-            return {
-              ...segment,
-              serviceVariationVersion: currentVersion,
-            };
+            if (currentVersion) {
+              return {
+                ...segment,
+                serviceVariationVersion: currentVersion,
+              };
+            }
           } catch (catErr) {
             console.error("[createBooking] Error fetching catalog version:", catErr.message);
-            console.error("[createBooking] Catalog error details:", JSON.stringify(catErr, null, 2));
           }
+        }
+        
+        // Ensure version is always BigInt when provided
+        if (segment.serviceVariationVersion) {
+          return {
+            ...segment,
+            serviceVariationVersion: BigInt(segment.serviceVariationVersion),
+          };
         }
         
         return segment;
