@@ -56,7 +56,8 @@ module.exports = {
       
       console.log("[createBooking] Auth source:", source, "userId:", authUserId);
 
-      const { customerId, startAt, locationId, appointmentSegments } = req.body;
+      const { customerId, startAt, appointmentSegments } = req.body;
+      const locationId = process.env.LOCATION_ID;
 
       // Use JWT-based client
       const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
@@ -65,10 +66,10 @@ module.exports = {
         : await getUserClient(authUserId);
 
       // Validate required fields
-      if (!customerId || !startAt || !locationId || !appointmentSegments) {
+      if (!customerId || !startAt || !appointmentSegments) {
         return res.status(400).json({
           error:
-            "Missing required fields: customerId, startAt, locationId, and appointmentSegments are required",
+            "Missing required fields: customerId, startAt, and appointmentSegments are required",
         });
       }
       
