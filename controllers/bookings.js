@@ -16,37 +16,14 @@ module.exports = {
       
       console.log("[searchAvailability] Auth source:", source, "userId:", authUserId);
 
-      // Use JWT-based client
-      const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
-      const userClient = token 
-        ? await getUserClientFromJWT(token)
-        : await getUserClient(authUserId);
-
-      // Get user's locationId from database
-      let userLocationId;
-      if (token) {
-        const { MongoClient } = require("mongodb");
-        const mongoClient = new MongoClient(process.env.MONGO_URI);
-        await mongoClient.connect();
-        const db = mongoClient.db("Supreme-Nomads-Detailing");
-        const usersCollection = db.collection("Users");
-        const user = await usersCollection.findOne({ userId: authUserId });
-        await mongoClient.close();
-        userLocationId = user?.locationId;
-        console.log("[searchAvailability] User locationId from DB:", userLocationId);
-      }
-
-      const locationId = userLocationId || process.env.LOCATION_ID;
-      console.log("[searchAvailability] Using locationId:", locationId);
-
-      const searchAvailability = await userClient.bookings.searchAvailability({
+      const searchAvailability = await client.bookings.searchAvailability({
         query: {
           filter: {
             startAtRange: {
               startAt: req.body.startAt,
               endAt: req.body.endAt,
             },
-            locationId: locationId,
+            locationId: process.env.LOCATION_ID,
             segmentFilters: [
               {
                 serviceVariationId: req.body.serviceVariationId,
