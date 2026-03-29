@@ -244,24 +244,39 @@ module.exports = {
       };
       
       let locationId = null;
+      console.log("[callback] Before location fetch - token present:", !!token.access_token);
+      
       try {
         const { client: SquareClient, environment: SquareEnvironment } = require("square");
+        console.log("[callback] Square client imported successfully");
+        
         const squareClient = new SquareClient({
           token: token.access_token,
           environment: SquareEnvironment.Production,
         });
+        console.log("[callback] Square client created");
+        
         const locationsResponse = await squareClient.locations.list();
-        console.log("[callback] Locations response:", locationsResponse);
+        console.log("[callback] Locations API response status:", locationsResponse.statusCode);
+        console.log("[callback] Locations API response:", JSON.stringify(locationsResponse));
+        console.log("[callback] Locations result object:", locationsResponse.result);
+        console.log("[callback] Locations array:", locationsResponse.locations);
+        console.log("[callback] Locations count:", locationsResponse.locations?.length);
         
         if (locationsResponse.locations && locationsResponse.locations.length > 0) {
           locationId = locationsResponse.locations[0].id;
           console.log("[callback] Using locationId:", locationId);
+          console.log("[callback] Location details:", JSON.stringify(locationsResponse.locations[0]));
         } else {
-          console.warn("[callback] No locations found for this user");
+          console.warn("[callback] No locations found for this user - locationsResponse:", locationsResponse);
         }
       } catch (locErr) {
         console.error("[callback] Error fetching locations:", locErr.message);
+        console.error("[callback] Error stack:", locErr.stack);
+        console.error("[callback] Error details:", locErr);
       }
+
+      console.log("[callback] Final locationId before save:", locationId);
 
       console.log("[callback] Step 6: Inserting user into MongoDB");
       const db = connectMongoClient.db("Supreme-Nomads-Detailing");
@@ -271,6 +286,7 @@ module.exports = {
       const userId = new ObjectId();
 
       console.log("[callback] Inserting with accessToken:", token.access_token ? "present" : "NULL");
+      console.log("[callback] Inserting with locationId:", locationId ? locationId : "NULL");
 
       const user = await collection.insertOne({
         _id: userId,
@@ -284,7 +300,8 @@ module.exports = {
         updatedAt: new Date(),
       });
 
-      console.log("[callback] User inserted:", user);
+      console.log("[callback] User inserted successfully, _id:", user.insertedId);
+      console.log("[callback] User document locationId:", locationId);
 
       console.log("[callback] Step 7: Creating JWT");
       const jwtToken = createJWT({
@@ -528,6 +545,20 @@ module.exports = {
       console.log("[getJWT] Finding user with userId:", userId);
       const user = await collection.findOne({ userId });
       console.log("[getJWT] Found user:", user ? "yes" : "no");
+      
+      if (user) {
+        console.log("[getJWT] User document keys:", Object.keys(user));
+        console.log("[getJWT] User locationId from DB:", user.locationId);
+        console.log("[getJWT] User accessToken present:", !!user.accessToken);
+        console.log("[getJWT] Full user document:", JSON.stringify({
+          userId: user.userId,
+          locationId: user.locationId,
+          accessToken: user.accessToken ? "present" : "null",
+          refreshToken: user.refreshToken ? "present" : "null",
+          expiresAt: user.expiresAt,
+          createdAt: user.createdAt,
+        }));
+      }
 
       await connectMongoClient.close();
 
@@ -536,7 +567,7 @@ module.exports = {
         return res.status(404).json({ error: "User not found" });
       }
 
-      console.log("[getJWT] Success! Returning user data");
+      console.log("[getJWT] Success! Returning user data with locationId:", user.locationId);
       res.json({
         userId: user.userId,
         oAuthCode: user.oAuthCode,
