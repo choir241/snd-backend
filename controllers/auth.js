@@ -144,7 +144,11 @@ module.exports = {
   generateToken: async (req, res) => {
     try {
       const state = crypto.randomBytes(32).toString("hex");
-      const callbackUrl = `${process.env.BACKEND_URL}/callback`;
+      // Use direct URL for testing - update to env var in production
+      let callbackUrl = process.env.BACKEND_URL 
+        ? `${process.env.BACKEND_URL}/callback`
+        : `https://snd-backend-b00s.onrender.com/callback`;
+      callbackUrl = callbackUrl.replace(/\/$/, ''); // Remove trailing slash
       
       const url =
         `https://connect.squareup.com/oauth2/authorize?client_id=${process.env.APP_ID}&` +
