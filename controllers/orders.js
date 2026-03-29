@@ -62,14 +62,15 @@ module.exports = {
 
       let {
         referenceId = generateReferenceId(),
-        locationId,
         lineItems,
         taxes = [],
         discounts = [],
       } = req.body;
 
+      const locationid = process.env.LOCATION_ID;
+
       console.log("[createOrder] Full request body:", JSON.stringify(req.body));
-      console.log("[createOrder] Location ID being used:", locationId);
+      console.log("[createOrder] Location ID being used:", locationid);
 
       const order = {
         idempotencyKey,
