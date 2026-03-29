@@ -73,12 +73,31 @@ module.exports = {
         });
       }
       
-      // Convert serviceVariationVersion to BigInt if it exists
-      const processedSegments = appointmentSegments.map((segment) => ({
-        ...segment,
-        ...(segment.serviceVariationVersion && {
-          serviceVariationVersion: BigInt(segment.serviceVariationVersion),
-        }),
+      // Fetch current serviceVariationVersion from catalog for each segment
+      const processedSegments = await Promise.all(appointmentSegments.map(async (segment) => {
+        const segmentVersion = segment.serviceVariationVersion 
+          ? BigInt(segment.serviceVariationVersion)
+          : null;
+        
+        // If version not provided, fetch from catalog
+        if (!segmentVersion && segment.serviceVariationId) {
+          try {
+            const catalogResponse = await userClient.catalog.retrieve(segment.serviceVariationId);
+            if (catalogResponse.object?.itemVariationData) {
+              return {
+                ...segment,
+                serviceVariationVersion: BigInt(catalogResponse.object.version),
+              };
+            }
+          } catch (catErr) {
+            console.error("[createBooking] Error fetching catalog version:", catErr.message);
+          }
+        }
+        
+        return {
+          ...segment,
+          ...(segmentVersion && { serviceVariationVersion: segmentVersion }),
+        };
       }));
 
       const bookingData = {
