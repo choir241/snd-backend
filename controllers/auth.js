@@ -10,11 +10,14 @@ const https = require("https");
 
 const obtainSquareToken = async (code) => {
   return new Promise((resolve, reject) => {
+    const callbackUrl = `https://snd-backend-b00s.onrender.com/callback`;
+    
     const data = JSON.stringify({
       client_id: process.env.APP_ID,
       client_secret: process.env.APP_SECRET,
       code: code,
       grant_type: "authorization_code",
+      redirect_uri: callbackUrl,
     });
 
     const options = {
