@@ -20,6 +20,8 @@ const obtainSquareToken = async (code) => {
       redirect_uri: callbackUrl,
     });
 
+    console.log("[obtainSquareToken] Request data:", { client_id: process.env.APP_ID, code: code?.substring(0, 10) + "...", redirect_uri: callbackUrl });
+
     const options = {
       hostname: "connect.squareup.com",
       port: 443,
@@ -35,6 +37,8 @@ const obtainSquareToken = async (code) => {
       let body = "";
       res.on("data", (chunk) => (body += chunk));
       res.on("end", () => {
+        console.log("[obtainSquareToken] Square response status:", res.statusCode);
+        console.log("[obtainSquareToken] Square response body:", body);
         try {
           const response = JSON.parse(body);
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -201,6 +205,7 @@ module.exports = {
 
       const code = params.get("code");
       console.log("[callback] Step 3: Extracted code:", code ? "present" : "MISSING");
+      console.log("[callback] Code value (first 20 chars):", code ? code.substring(0, 20) + "..." : "N/A");
 
       if (!code) {
         handleErrorMessage("Auth code missing", code, "code");
@@ -209,14 +214,25 @@ module.exports = {
       console.log("[callback] Step 4: Calling Square obtainToken");
       console.log("[callback] APP_ID:", process.env.APP_ID ? "present" : "MISSING");
       console.log("[callback] APP_SECRET:", process.env.APP_SECRET ? "present" : "MISSING");
+      console.log("[callback] Callback URL being used:", `https://snd-backend-b00s.onrender.com/callback`);
 
       const token = await obtainSquareToken(code);
 
       console.log("[callback] Step 5: Token obtained:", token ? "success" : "MISSING");
       console.log("[callback] Token details:", token);
+      console.log("[callback] Token accessToken:", token?.accessToken);
+      console.log("[callback] Token refreshToken:", token?.refreshToken);
+      console.log("[callback] Token expiresAt:", token?.expiresAt);
+      console.log("[callback] Token keys:", token ? Object.keys(token) : "N/A");
 
       if (!token) {
         handleErrorMessage("OAuth token missing", token, "token");
+      }
+
+      if (!token.accessToken) {
+        console.error("[callback] ERROR: Square did not return an accessToken!");
+        console.error("[callback] Full Square response:", JSON.stringify(token));
+        handleErrorMessage("Square OAuth did not return access token", token, "token");
       }
 
       console.log("[callback] Step 6: Inserting user into MongoDB");
@@ -225,6 +241,8 @@ module.exports = {
       const collection = db.collection("Users");
 
       const userId = new ObjectId();
+
+      console.log("[callback] Inserting with accessToken:", token.accessToken ? "present" : "NULL");
 
       const user = await collection.insertOne({
         _id: userId,
@@ -591,6 +609,78 @@ module.exports = {
       }
       
       handleErrorMessage(`A problem occured verifying user: ${err.message}`);
+    }
+  },
+  getAuthTokens: async (req, res) => {
+    try {
+      console.log("[getAuthTokens] Starting...");
+      
+      let token = null;
+      
+      // Check Authorization header first
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
+      
+      // Fall back to query param
+      if (!token) {
+        token = req.query.jwt;
+      }
+      
+      if (!token) {
+        console.log("[getAuthTokens] No token found");
+        return res.status(401).json({ 
+          error: "No JWT token provided",
+        });
+      }
+      
+      console.log("[getAuthTokens] Verifying token...");
+      const decoded = verifyJWT(token);
+      const { userId } = decoded;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "Invalid JWT: userId not found" });
+      }
+      
+      console.log("[getAuthTokens] Connecting to MongoDB...");
+      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
+      await connectMongoClient.connect();
+      
+      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
+      const collection = db.collection("Users");
+      
+      console.log("[getAuthTokens] Looking up user:", userId);
+      const user = await collection.findOne({ userId });
+      
+      await connectMongoClient.close();
+      
+      if (!user) {
+        console.log("[getAuthTokens] User not found");
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (!user.accessToken) {
+        console.log("[getAuthTokens] No access token for user");
+        return res.status(404).json({ error: "No Square access token found. Please re-authenticate." });
+      }
+      
+      console.log("[getAuthTokens] Success! Returning tokens");
+      res.json({
+        accessToken: user.accessToken,
+        refreshToken: user.refreshToken,
+        expiresAt: user.expiresAt,
+        userId: user.userId,
+      });
+    } catch (err) {
+      console.error("[getAuthTokens] ERROR:", err.message);
+      console.error("[getAuthTokens] ERROR name:", err.name);
+      
+      if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+        return res.status(401).json({ error: "Invalid or expired JWT token" });
+      }
+      
+      handleErrorMessage(`A problem occured getting auth tokens: ${err.message}`);
     }
   },
 };

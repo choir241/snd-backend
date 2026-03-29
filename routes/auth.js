@@ -10,5 +10,6 @@ router.post("/getCurrUser", authController.getCurrUser);
 router.post("/createJWT", authController.createJWT);
 router.get("/getJWT", authController.getJWT);
 router.get("/verifyUser", authController.verifyUser);
+router.get("/getAuthTokens", authController.getAuthTokens);
 
 module.exports = router;
