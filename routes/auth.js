@@ -9,5 +9,6 @@ router.get("/revokeToken", authController.revokeToken);
 router.post("/getCurrUser", authController.getCurrUser);
 router.post("/createJWT", authController.createJWT);
 router.get("/getJWT", authController.getJWT);
+router.get("/verifyUser", authController.verifyUser);
 
 module.exports = router;

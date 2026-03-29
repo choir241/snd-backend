@@ -499,4 +499,85 @@ module.exports = {
       );
     }
   },
+  verifyUser: async (req, res) => {
+    try {
+      console.log("[verifyUser] Starting verification...");
+      
+      let token = null;
+      
+      // Check Authorization header first (Bearer token)
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+        console.log("[verifyUser] Token from Authorization header");
+      }
+      
+      // Fall back to query param (jwt=...)
+      if (!token) {
+        token = req.query.jwt;
+        console.log("[verifyUser] Token from query param");
+      }
+      
+      // Fall back to cookie
+      if (!token) {
+        token = req.cookies.jwt_token;
+        console.log("[verifyUser] Token from cookie");
+      }
+      
+      if (!token) {
+        console.log("[verifyUser] No token found");
+        return res.status(401).json({ 
+          error: "No JWT token provided",
+          valid: false,
+        });
+      }
+      
+      console.log("[verifyUser] Verifying token...");
+      const decoded = verifyJWT(token);
+      console.log("[verifyUser] Token decoded successfully:", decoded);
+      
+      const { userId } = decoded;
+      
+      console.log("[verifyUser] Connecting to MongoDB...");
+      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
+      await connectMongoClient.connect();
+      
+      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
+      const collection = db.collection("Users");
+      
+      console.log("[verifyUser] Looking up user:", userId);
+      const user = await collection.findOne({ userId });
+      
+      await connectMongoClient.close();
+      
+      if (!user) {
+        console.log("[verifyUser] User not found");
+        return res.status(404).json({ 
+          error: "User not found",
+          valid: false,
+        });
+      }
+      
+      console.log("[verifyUser] Success! User verified");
+      res.json({
+        valid: true,
+        userId: user.userId,
+        oAuthCode: user.oAuthCode,
+        createdAt: user.createdAt,
+      });
+    } catch (err) {
+      console.error("[verifyUser] ERROR:", err.message);
+      console.error("[verifyUser] ERROR name:", err.name);
+      
+      if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+        console.error("[verifyUser] JWT verification failed");
+        return res.status(401).json({ 
+          error: "Invalid or expired JWT token",
+          valid: false,
+        });
+      }
+      
+      handleErrorMessage(`A problem occured verifying user: ${err.message}`);
+    }
+  },
 };

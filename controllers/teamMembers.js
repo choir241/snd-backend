@@ -2,11 +2,40 @@
 const { client } = require("../middleware/squareClient");
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
 const { getUserClient } = require("../hooks/getUserClient");
+const { verifyJWT } = require("../utils/jwt");
+
+const extractAndVerifyJWT = (req) => {
+  let token = null;
+  
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  }
+  
+  if (!token) {
+    token = req.query.jwt;
+  }
+  
+  if (token) {
+    try {
+      return verifyJWT(token);
+    } catch (err) {
+      console.warn("[JWT] Verification failed:", err.message);
+    }
+  }
+  return null;
+};
 
 module.exports = {
   searchTeamMembers: async (req, res) => {
     try {
       const { userId, status = "ACTIVE", limit = 10 } = req.query;
+
+      // Optionally verify JWT if present
+      const decodedJWT = extractAndVerifyJWT(req);
+      if (decodedJWT) {
+        console.log("[searchTeamMembers] JWT verified for user:", decodedJWT.userId);
+      }
 
       if (!userId) {
         return res.status(400).json({ error: "userId is required" });

@@ -2,11 +2,42 @@ const { client } = require("../middleware/squareClient");
 require("dotenv").config();
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
 const { getUserClient } = require("../hooks/getUserClient");
+const { verifyJWT } = require("../utils/jwt");
+
+const extractAndVerifyJWT = (req) => {
+  let token = null;
+  
+  // Check Authorization header first
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  }
+  
+  // Fall back to query param
+  if (!token) {
+    token = req.query.jwt;
+  }
+  
+  if (token) {
+    try {
+      return verifyJWT(token);
+    } catch (err) {
+      console.warn("[JWT] Verification failed:", err.message);
+    }
+  }
+  return null;
+};
 
 module.exports = {
   createCustomer: async (req, res) => {
     try {
       const { userId } = req.body;
+
+      // Optionally verify JWT if present
+      const decodedJWT = extractAndVerifyJWT(req);
+      if (decodedJWT) {
+        console.log("[createCustomer] JWT verified for user:", decodedJWT.userId);
+      }
 
       if (!userId) {
         return res.status(400).json({ error: "userId is required" });
@@ -57,6 +88,16 @@ module.exports = {
   getCustomers: async (req, res) => {
     try {
       const userId = req.query.userId || req.body.userId;
+
+      // Optionally verify JWT if present
+      const decodedJWT = extractAndVerifyJWT(req);
+      if (decodedJWT) {
+        console.log("[getCustomers] JWT verified for user:", decodedJWT.userId);
+        // If JWT userId differs from provided userId, log warning but continue
+        if (userId && decodedJWT.userId !== userId) {
+          console.warn("[getCustomers] userId mismatch: JWT says", decodedJWT.userId, "but got", userId);
+        }
+      }
 
       if (!userId) {
         return res.status(400).json({ error: "userId is required" });
