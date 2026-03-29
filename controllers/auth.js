@@ -247,8 +247,8 @@ module.exports = {
       console.log("[callback] Before location fetch - token present:", !!token.access_token);
       
       try {
-        const { client: SquareClient, environment: SquareEnvironment } = require("square");
-        console.log("[callback] Square client imported successfully");
+        const { Client: SquareClient, Environment: SquareEnvironment } = require("square");
+        console.log("[callback] Square imports - SquareClient:", typeof SquareClient, "SquareEnvironment:", typeof SquareEnvironment);
         
         const squareClient = new SquareClient({
           token: token.access_token,
