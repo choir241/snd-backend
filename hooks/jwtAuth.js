@@ -34,19 +34,13 @@ const extractUserIdFromJWT = (req) => {
 };
 
 const getUserIdFromRequest = async (req) => {
-  // First, try JWT
+  // JWT is the only authentication method - no fallback
   const userIdFromJWT = extractUserIdFromJWT(req);
   if (userIdFromJWT) {
     return { userId: userIdFromJWT, source: 'jwt' };
   }
   
-  // Fall back to userId from body/query (legacy support)
-  const userId = req.query.userId || req.body?.userId;
-  if (userId) {
-    console.log("[Auth] Using userId from request body/query:", userId);
-    return { userId, source: 'request' };
-  }
-  
+  console.log("[JWT Auth] No valid JWT token found in request");
   return { userId: null, source: null };
 };
 
