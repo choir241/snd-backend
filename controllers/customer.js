@@ -21,6 +21,9 @@ module.exports = {
         ? await getUserClientFromJWT(token)
         : await getUserClient(authUserId);
 
+
+      console.log("req.body", req.body);
+
       const response = await userClient.customers.create({
         givenName: req.body.firstName,
         familyName: req.body.lastName,
