@@ -220,16 +220,16 @@ module.exports = {
 
       console.log("[callback] Step 5: Token obtained:", token ? "success" : "MISSING");
       console.log("[callback] Token details:", token);
-      console.log("[callback] Token accessToken:", token?.accessToken);
-      console.log("[callback] Token refreshToken:", token?.refreshToken);
-      console.log("[callback] Token expiresAt:", token?.expiresAt);
+      console.log("[callback] Token accessToken:", token?.access_token);
+      console.log("[callback] Token refreshToken:", token?.refresh_token);
+      console.log("[callback] Token expiresAt:", token?.expires_at);
       console.log("[callback] Token keys:", token ? Object.keys(token) : "N/A");
 
       if (!token) {
         handleErrorMessage("OAuth token missing", token, "token");
       }
 
-      if (!token.accessToken) {
+      if (!token.access_token) {
         console.error("[callback] ERROR: Square did not return an accessToken!");
         console.error("[callback] Full Square response:", JSON.stringify(token));
         handleErrorMessage("Square OAuth did not return access token", token, "token");
@@ -242,15 +242,15 @@ module.exports = {
 
       const userId = new ObjectId();
 
-      console.log("[callback] Inserting with accessToken:", token.accessToken ? "present" : "NULL");
+      console.log("[callback] Inserting with accessToken:", token.access_token ? "present" : "NULL");
 
       const user = await collection.insertOne({
         _id: userId,
         userId: userId.toString(),
         oAuthCode: code,
-        accessToken: token.accessToken,
-        refreshToken: token.refreshToken,
-        expiresAt: token.expiresAt,
+        accessToken: token.access_token,
+        refreshToken: token.refresh_token,
+        expiresAt: token.expires_at,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
