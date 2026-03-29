@@ -20,10 +20,15 @@ module.exports = {
       // Get user's Square access token from MongoDB
       const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
       
+      console.log("[createOrder] JWT token present:", !!token);
+      console.log("[createOrder] Auth header:", req.headers.authorization?.substring(0, 20) + "...");
+      
       let userClient;
       if (token) {
         // Extract userId from JWT and fetch user's access token from MongoDB
         const userIdFromJWT = extractUserIdFromJWT(req);
+        console.log("[createOrder] userId from JWT:", userIdFromJWT);
+        
         const mongoClient = new MongoClient(process.env.MONGO_URI);
         await mongoClient.connect();
         const db = mongoClient.db("Supreme-Nomads-Detailing");
@@ -31,11 +36,16 @@ module.exports = {
         const user = await collection.findOne({ userId: userIdFromJWT });
         await mongoClient.close();
         
+        console.log("[createOrder] User found in DB:", !!user);
+        console.log("[createOrder] User has accessToken:", !!user?.accessToken);
+        console.log("[createOrder] User accessToken (first 10 chars):", user?.accessToken ? user.accessToken.substring(0, 10) + "..." : "N/A");
+        
         if (!user || !user.accessToken) {
           return res.status(401).json({ error: "Square access token not found. Please re-authenticate." });
         }
         
         userClient = createUserClient(user.accessToken);
+        console.log("[createOrder] SquareClient created with user token");
       } else {
         userClient = await getUserClient(authUserId);
       }
@@ -58,7 +68,8 @@ module.exports = {
         discounts = [],
       } = req.body;
 
-      console.log("req.body", req.body);
+      console.log("[createOrder] Full request body:", JSON.stringify(req.body));
+      console.log("[createOrder] Location ID being used:", locationId);
 
       const order = {
         idempotencyKey,
@@ -129,13 +140,20 @@ module.exports = {
         },
       };
 
-      console.log("order", order);
+      console.log("[createOrder] Order object being sent to Square:", JSON.stringify(order, (key, value) => {
+        if (key === 'idempotencyKey') return value; // Keep this
+        if (typeof value === 'bigint') return value.toString();
+        return value;
+      }, 2));
 
+      console.log("[createOrder] Calling Square orders.create...");
       const response = await userClient.orders.create(order);
-      console.log("response", response);
+      console.log("[createOrder] Square response:", response);
       res.json({ success: true, orderId: response.order.id });
     } catch (error) {
-      console.error("Order creation error:", error);
+      console.error("[createOrder] Order creation error:", error);
+      console.error("[createOrder] Error code:", error.code);
+      console.error("[createOrder] Error details:", error.errors);
       res.status(500).json({
         error: error.message,
         ...(error.errors && { details: error.errors }),
