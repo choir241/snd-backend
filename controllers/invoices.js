@@ -1,46 +1,26 @@
 const { client } = require("../middleware/squareClient");
 const crypto = require("crypto");
-const { getUserClient } = require("../hooks/getUserClient");
-const { verifyJWT } = require("../utils/jwt");
-
-const extractAndVerifyJWT = (req) => {
-  let token = null;
-  
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.substring(7);
-  }
-  
-  if (!token) {
-    token = req.query.jwt;
-  }
-  
-  if (token) {
-    try {
-      return verifyJWT(token);
-    } catch (err) {
-      console.warn("[JWT] Verification failed:", err.message);
-    }
-  }
-  return null;
-};
+const { getUserClient, getUserClientFromJWT } = require("../hooks/getUserClient");
+const { getUserIdFromRequest } = require("../hooks/jwtAuth");
 
 module.exports = {
   createInvoice: async (req, res) => {
     try {
-      const { userId, orderId, customerId, dueDate } = req.body;
-
-      // Optionally verify JWT if present
-      const decodedJWT = extractAndVerifyJWT(req);
-      if (decodedJWT) {
-        console.log("[createInvoice] JWT verified for user:", decodedJWT.userId);
+      const { userId: authUserId, source } = await getUserIdFromRequest(req);
+      
+      if (!authUserId) {
+        return res.status(401).json({ error: "Authentication required. Please log in." });
       }
+      
+      console.log("[createInvoice] Auth source:", source, "userId:", authUserId);
 
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
+      const { orderId, customerId, dueDate } = req.body;
 
-      const userClient = await getUserClient(userId);
+      // Use JWT-based client
+      const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
+      const userClient = token 
+        ? await getUserClientFromJWT(token)
+        : await getUserClient(authUserId);
 
       const invoice = {
         invoice: {
@@ -79,21 +59,22 @@ module.exports = {
 
   publishInvoice: async (req, res) => {
     try {
-      const { userId } = req.body;
+      const { userId: authUserId, source } = await getUserIdFromRequest(req);
+      
+      if (!authUserId) {
+        return res.status(401).json({ error: "Authentication required. Please log in." });
+      }
+      
+      console.log("[publishInvoice] Auth source:", source, "userId:", authUserId);
+
       const { invoice_id } = req.params;
       const { version } = req.body;
 
-      // Optionally verify JWT if present
-      const decodedJWT = extractAndVerifyJWT(req);
-      if (decodedJWT) {
-        console.log("[publishInvoice] JWT verified for user:", decodedJWT.userId);
-      }
-
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-
-      const userClient = await getUserClient(userId);
+      // Use JWT-based client
+      const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
+      const userClient = token 
+        ? await getUserClientFromJWT(token)
+        : await getUserClient(authUserId);
 
       const idempotencyKey = crypto.randomUUID();
 

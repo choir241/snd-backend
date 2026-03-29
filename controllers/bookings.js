@@ -1,30 +1,9 @@
 const { client } = require("../middleware/squareClient");
 require("dotenv").config();
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
-const { getUserClient } = require("../hooks/getUserClient");
-const { verifyJWT } = require("../utils/jwt");
-
-const extractAndVerifyJWT = (req) => {
-  let token = null;
-  
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.substring(7);
-  }
-  
-  if (!token) {
-    token = req.query.jwt;
-  }
-  
-  if (token) {
-    try {
-      return verifyJWT(token);
-    } catch (err) {
-      console.warn("[JWT] Verification failed:", err.message);
-    }
-  }
-  return null;
-};
+const { getUserClient, getUserClientFromJWT } = require("../hooks/getUserClient");
+const { getUserIdFromRequest } = require("../hooks/jwtAuth");
+const crypto = require("crypto");
 
 module.exports = {
   searchAvailability: async (req, res) => {
@@ -69,19 +48,21 @@ module.exports = {
   },
   createBooking: async (req, res) => {
     try {
-      const { userId, customerId, startAt, locationId, appointmentSegments } = req.body;
-
-      // Optionally verify JWT if present
-      const decodedJWT = extractAndVerifyJWT(req);
-      if (decodedJWT) {
-        console.log("[createBooking] JWT verified for user:", decodedJWT.userId);
+      const { userId: authUserId, source } = await getUserIdFromRequest(req);
+      
+      if (!authUserId) {
+        return res.status(401).json({ error: "Authentication required. Please log in." });
       }
+      
+      console.log("[createBooking] Auth source:", source, "userId:", authUserId);
 
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
+      const { customerId, startAt, locationId, appointmentSegments } = req.body;
 
-      const userClient = await getUserClient(userId);
+      // Use JWT-based client
+      const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
+      const userClient = token 
+        ? await getUserClientFromJWT(token)
+        : await getUserClient(authUserId);
 
       // Validate required fields
       if (!customerId || !startAt || !locationId || !appointmentSegments) {
@@ -90,6 +71,7 @@ module.exports = {
             "Missing required fields: customerId, startAt, locationId, and appointmentSegments are required",
         });
       }
+      
       // Convert serviceVariationVersion to BigInt if it exists
       const processedSegments = appointmentSegments.map((segment) => ({
         ...segment,

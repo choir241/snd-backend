@@ -1,49 +1,25 @@
 const { client } = require("../middleware/squareClient");
 require("dotenv").config();
 const { handleErrorMessage } = require("../hooks/handleErrorMessage");
-const { getUserClient } = require("../hooks/getUserClient");
-const { verifyJWT } = require("../utils/jwt");
-
-const extractAndVerifyJWT = (req) => {
-  let token = null;
-  
-  // Check Authorization header first
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.substring(7);
-  }
-  
-  // Fall back to query param
-  if (!token) {
-    token = req.query.jwt;
-  }
-  
-  if (token) {
-    try {
-      return verifyJWT(token);
-    } catch (err) {
-      console.warn("[JWT] Verification failed:", err.message);
-    }
-  }
-  return null;
-};
+const { getUserClient, getUserClientFromJWT } = require("../hooks/getUserClient");
+const { extractUserIdFromJWT, getUserIdFromRequest } = require("../hooks/jwtAuth");
 
 module.exports = {
   createCustomer: async (req, res) => {
     try {
-      const { userId } = req.body;
-
-      // Optionally verify JWT if present
-      const decodedJWT = extractAndVerifyJWT(req);
-      if (decodedJWT) {
-        console.log("[createCustomer] JWT verified for user:", decodedJWT.userId);
+      const { userId: authUserId, source } = await getUserIdFromRequest(req);
+      
+      if (!authUserId) {
+        return res.status(401).json({ error: "Authentication required. Please log in." });
       }
+      
+      console.log("[createCustomer] Auth source:", source, "userId:", authUserId);
 
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-
-      const userClient = await getUserClient(userId);
+      // Use JWT-based client
+      const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
+      const userClient = token 
+        ? await getUserClientFromJWT(token)
+        : await getUserClient(authUserId);
 
       const response = await userClient.customers.create({
         givenName: req.body.firstName,
@@ -87,23 +63,19 @@ module.exports = {
   },
   getCustomers: async (req, res) => {
     try {
-      const userId = req.query.userId || req.body.userId;
-
-      // Optionally verify JWT if present
-      const decodedJWT = extractAndVerifyJWT(req);
-      if (decodedJWT) {
-        console.log("[getCustomers] JWT verified for user:", decodedJWT.userId);
-        // If JWT userId differs from provided userId, log warning but continue
-        if (userId && decodedJWT.userId !== userId) {
-          console.warn("[getCustomers] userId mismatch: JWT says", decodedJWT.userId, "but got", userId);
-        }
+      const { userId: authUserId, source } = await getUserIdFromRequest(req);
+      
+      if (!authUserId) {
+        return res.status(401).json({ error: "Authentication required. Please log in." });
       }
+      
+      console.log("[getCustomers] Auth source:", source, "userId:", authUserId);
 
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-
-      const userClient = await getUserClient(userId);
+      // Use JWT-based client
+      const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
+      const userClient = token 
+        ? await getUserClientFromJWT(token)
+        : await getUserClient(authUserId);
 
       const response = await userClient.customers.list({});
 

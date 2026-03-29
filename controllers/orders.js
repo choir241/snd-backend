@@ -2,63 +2,25 @@
 const { SquareClient, SquareEnvironment } = require("square");
 const { MongoClient } = require("mongodb");
 const crypto = require("crypto");
-const { verifyJWT } = require("../utils/jwt");
-
-const extractAndVerifyJWT = (req) => {
-  let token = null;
-  
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.substring(7);
-  }
-  
-  if (!token) {
-    token = req.query.jwt;
-  }
-  
-  if (token) {
-    try {
-      return verifyJWT(token);
-    } catch (err) {
-      console.warn("[JWT] Verification failed:", err.message);
-    }
-  }
-  return null;
-};
+const { getUserClient, getUserClientFromJWT } = require("../hooks/getUserClient");
+const { getUserIdFromRequest } = require("../hooks/jwtAuth");
 
 module.exports = {
   createOrder: async (req, res) => {
     try {
-      const { userId } = req.body;
-
-      // Optionally verify JWT if present
-      const decodedJWT = extractAndVerifyJWT(req);
-      if (decodedJWT) {
-        console.log("[createOrder] JWT verified for user:", decodedJWT.userId);
+      const { userId: authUserId, source } = await getUserIdFromRequest(req);
+      
+      if (!authUserId) {
+        return res.status(401).json({ error: "Authentication required. Please log in." });
       }
+      
+      console.log("[createOrder] Auth source:", source, "userId:", authUserId);
 
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-
-      const connectMongoClient = new MongoClient(process.env.MONGO_URI);
-      await connectMongoClient.connect();
-
-      const db = connectMongoClient.db("Supreme-Nomads-Detailing");
-      const collection = db.collection("Users");
-
-      const user = await collection.findOne({ userId });
-
-      await connectMongoClient.close();
-
-      if (!user || !user.accessToken) {
-        return res.status(404).json({ error: "User or access token not found" });
-      }
-
-      const userClient = new SquareClient({
-        token: user.accessToken,
-        environment: SquareEnvironment.Production,
-      });
+      // Use JWT-based client
+      const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
+      const userClient = token 
+        ? await getUserClientFromJWT(token)
+        : await getUserClient(authUserId);
 
       function generateReferenceId(prefix = "ORDER") {
         const timestamp = Date.now();
