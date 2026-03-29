@@ -138,7 +138,7 @@ const revokeSquareToken = async (accessToken) => {
 };
 
 const scopes = [
-  // ... existing scopes ...
+  "MERCHANT_PROFILE_READ",
   "ORDERS_READ",
   "ORDERS_WRITE",
   "INVOICES_READ",
