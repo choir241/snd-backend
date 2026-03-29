@@ -23,11 +23,27 @@ module.exports = {
         ? await getUserClientFromJWT(token)
         : await getUserClient(authUserId);
 
-      const locationId = process.env.LOCATION_ID;
+      // Get user's locationId from database
+      let userLocationId;
+      if (token) {
+        const { MongoClient } = require("mongodb");
+        const mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+        const db = mongoClient.db("Supreme-Nomads-Detailing");
+        const usersCollection = db.collection("Users");
+        const user = await usersCollection.findOne({ userId: authUserId });
+        await mongoClient.close();
+        userLocationId = user?.locationId;
+        console.log("[searchTeamMembers] User locationId from DB:", userLocationId);
+      }
+
+      const locationId = userLocationId || process.env.LOCATION_ID;
 
       if (!locationId) {
         return res.status(400).json({ error: "locationId is required" });
       }
+
+      console.log("[searchTeamMembers] Using locationId:", locationId);
 
       const response = await userClient.teamMembers.search({
         query: {

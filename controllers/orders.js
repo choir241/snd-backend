@@ -67,7 +67,7 @@ module.exports = {
         discounts = [],
       } = req.body;
 
-      const locationId = process.env.LOCATION_ID;
+      const locationId = user?.locationId || process.env.LOCATION_ID;
 
       console.log("[createOrder] Full request body:", JSON.stringify(req.body));
       console.log("[createOrder] Location ID being used:", locationId);

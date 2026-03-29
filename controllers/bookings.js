@@ -8,14 +8,45 @@ const crypto = require("crypto");
 module.exports = {
   searchAvailability: async (req, res) => {
     try {
-      const searchAvailability = await client.bookings.searchAvailability({
+      const { userId: authUserId, source } = await getUserIdFromRequest(req);
+      
+      if (!authUserId) {
+        return res.status(401).json({ error: "Authentication required. Please log in." });
+      }
+      
+      console.log("[searchAvailability] Auth source:", source, "userId:", authUserId);
+
+      // Use JWT-based client
+      const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
+      const userClient = token 
+        ? await getUserClientFromJWT(token)
+        : await getUserClient(authUserId);
+
+      // Get user's locationId from database
+      let userLocationId;
+      if (token) {
+        const { MongoClient } = require("mongodb");
+        const mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+        const db = mongoClient.db("Supreme-Nomads-Detailing");
+        const usersCollection = db.collection("Users");
+        const user = await usersCollection.findOne({ userId: authUserId });
+        await mongoClient.close();
+        userLocationId = user?.locationId;
+        console.log("[searchAvailability] User locationId from DB:", userLocationId);
+      }
+
+      const locationId = userLocationId || process.env.LOCATION_ID;
+      console.log("[searchAvailability] Using locationId:", locationId);
+
+      const searchAvailability = await userClient.bookings.searchAvailability({
         query: {
           filter: {
             startAtRange: {
               startAt: req.body.startAt,
               endAt: req.body.endAt,
             },
-            locationId: process.env.LOCATION_ID,
+            locationId: locationId,
             segmentFilters: [
               {
                 serviceVariationId: req.body.serviceVariationId,
@@ -57,19 +88,34 @@ module.exports = {
       console.log("[createBooking] Auth source:", source, "userId:", authUserId);
 
       const { customerId, startAt, appointmentSegments } = req.body;
-      const locationId = process.env.LOCATION_ID;
 
       console.log("[createBooking] Full request body:", JSON.stringify(req.body, (key, value) => {
         if (typeof value === 'bigint') return value.toString();
         return value;
       }, 2));
-      console.log("[createBooking] Using locationId:", locationId);
 
       // Use JWT-based client
       const token = req.headers.authorization?.substring(7) || req.query.jwt || req.body?.jwt;
       const userClient = token 
         ? await getUserClientFromJWT(token)
         : await getUserClient(authUserId);
+
+      // Get user's locationId from database
+      let userLocationId;
+      if (token) {
+        const { MongoClient } = require("mongodb");
+        const mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+        const db = mongoClient.db("Supreme-Nomads-Detailing");
+        const usersCollection = db.collection("Users");
+        const user = await usersCollection.findOne({ userId: authUserId });
+        await mongoClient.close();
+        userLocationId = user?.locationId;
+        console.log("[createBooking] User locationId from DB:", userLocationId);
+      }
+
+      const locationId = userLocationId || process.env.LOCATION_ID;
+      console.log("[createBooking] Using locationId:", locationId);
 
       // Validate required fields
       if (!customerId || !startAt || !appointmentSegments) {
