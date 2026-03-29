@@ -39,15 +39,22 @@ module.exports = {
         limit: parseInt(limit, 10),
       });
 
-      const excludedNames = ["Sana Devokta", "Richard Choi"];
+      console.log("[searchTeamMembers] Raw team members:", JSON.stringify(response.teamMembers, null, 2));
+
+      const excludedNames = ["sana", "devokta", "richard", "choi"];
       
       const filteredTeamMembers = response.teamMembers.filter(member => {
-        const displayName = member.displayName || "";
-        const isExcluded = excludedNames.some(excluded => 
-          displayName.toLowerCase().includes(excluded.toLowerCase())
-        );
+        const nameFields = [
+          member.displayName || "",
+          member.givenName || "",
+          member.familyName || "",
+          member.title || "",
+        ].join(" ").toLowerCase();
+        
+        const isExcluded = excludedNames.some(excluded => nameFields.includes(excluded));
+        
         if (isExcluded) {
-          console.log(`[searchTeamMembers] Excluding team member: ${displayName}`);
+          console.log(`[searchTeamMembers] Excluding team member: ${member.displayName || member.givenName || "Unknown"}`);
         }
         return !isExcluded;
       });
