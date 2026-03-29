@@ -24,8 +24,8 @@ module.exports = {
       console.log("[createOrder] Auth header:", req.headers.authorization?.substring(0, 20) + "...");
       
       let userClient;
+      let user;
       if (token) {
-        // Extract userId from JWT and fetch user's access token from MongoDB
         const userIdFromJWT = extractUserIdFromJWT(req);
         console.log("[createOrder] userId from JWT:", userIdFromJWT);
         
@@ -33,7 +33,7 @@ module.exports = {
         await mongoClient.connect();
         const db = mongoClient.db("Supreme-Nomads-Detailing");
         const collection = db.collection("Users");
-        const user = await collection.findOne({ userId: userIdFromJWT });
+        user = await collection.findOne({ userId: userIdFromJWT });
         await mongoClient.close();
         
         console.log("[createOrder] User found in DB:", !!user);
@@ -67,11 +67,6 @@ module.exports = {
         taxes = [],
         discounts = [],
       } = req.body;
-
-      if (!locationId && user && user.locationId) {
-        locationId = user.locationId;
-        console.log("[createOrder] Using locationId from user document:", locationId);
-      }
 
       console.log("[createOrder] Full request body:", JSON.stringify(req.body));
       console.log("[createOrder] Location ID being used:", locationId);
