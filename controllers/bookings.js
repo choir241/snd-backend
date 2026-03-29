@@ -87,18 +87,21 @@ module.exports = {
         if (segment.serviceVariationId) {
           try {
             console.log("[createBooking] Fetching catalog version for variationId:", segment.serviceVariationId);
-            const catalogResponse = await userClient.catalog.retrieveCatalogObject(segment.serviceVariationId);
+            const catalogResponse = await userClient.catalog.batchRetrieve({
+              objectIds: [segment.serviceVariationId],
+            });
             console.log("[createBooking] Catalog response:", JSON.stringify(catalogResponse, (key, value) => {
               if (typeof value === 'bigint') return value.toString();
               return value;
             }, 2));
             
+            const catalogObject = catalogResponse.objects?.[0];
             let currentVersion;
-            if (catalogResponse.object?.type === "ITEM_VARIATION" && catalogResponse.object?.itemVariationData) {
-              currentVersion = BigInt(catalogResponse.object.version);
+            if (catalogObject?.type === "ITEM_VARIATION" && catalogObject?.itemVariationData) {
+              currentVersion = BigInt(catalogObject.version);
               console.log("[createBooking] Current catalog version from ITEM_VARIATION:", currentVersion.toString());
-            } else {
-              console.log("[createBooking] Unexpected catalog response type:", catalogResponse.object?.type);
+            } else if (catalogObject) {
+              console.log("[createBooking] Unexpected catalog response type:", catalogObject.type);
             }
             
             if (currentVersion) {
