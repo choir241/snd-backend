@@ -245,7 +245,7 @@ module.exports = {
       
       let locationId = null;
       try {
-        const { client: SquareClient } = require("square");
+        const { client: SquareClient, environment: SquareEnvironment } = require("square");
         const squareClient = new SquareClient({
           token: token.access_token,
           environment: SquareEnvironment.Production,
