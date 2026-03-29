@@ -144,14 +144,20 @@ module.exports = {
   generateToken: async (req, res) => {
     try {
       const state = crypto.randomBytes(32).toString("hex");
+      const callbackUrl = `${process.env.BACKEND_URL}/callback`;
+      
       const url =
         `https://connect.squareup.com/oauth2/authorize?client_id=${process.env.APP_ID}&` +
         `response_type=code&` +
         `scope=${scopes.join("+")}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
         `&session=false` +
         `&state=` +
         state;
 
+      console.log("[generateToken] Auth URL:", url);
+      console.log("[generateToken] Callback URL:", callbackUrl);
+      
       res.json({ url });
     } catch (err) {
       handleErrorMessage(
