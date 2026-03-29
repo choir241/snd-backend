@@ -39,7 +39,22 @@ module.exports = {
         limit: parseInt(limit, 10),
       });
 
-      res.json(response.teamMembers);
+      const excludedNames = ["Sana Devokta", "Richard Choi"];
+      
+      const filteredTeamMembers = response.teamMembers.filter(member => {
+        const displayName = member.displayName || "";
+        const isExcluded = excludedNames.some(excluded => 
+          displayName.toLowerCase().includes(excluded.toLowerCase())
+        );
+        if (isExcluded) {
+          console.log(`[searchTeamMembers] Excluding team member: ${displayName}`);
+        }
+        return !isExcluded;
+      });
+
+      console.log(`[searchTeamMembers] Returning ${filteredTeamMembers.length} team members (filtered from ${response.teamMembers.length})`);
+
+      res.json(filteredTeamMembers);
     } catch (error) {
       handleErrorMessage(
         `Error searching team members: ${error.message}`,
