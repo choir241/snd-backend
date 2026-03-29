@@ -41,7 +41,7 @@ module.exports = {
 
       console.log("[searchTeamMembers] Raw team members:", JSON.stringify(response.teamMembers, null, 2));
 
-      const excludedNames = ["sana", "devokta", "richard", "choi"];
+      const targetNames = ["tenzin", "akash"];
       
       const filteredTeamMembers = response.teamMembers.filter(member => {
         const nameFields = [
@@ -51,15 +51,15 @@ module.exports = {
           member.title || "",
         ].join(" ").toLowerCase();
         
-        const isExcluded = excludedNames.some(excluded => nameFields.includes(excluded));
+        const isMatch = targetNames.some(target => nameFields.includes(target));
         
-        if (isExcluded) {
-          console.log(`[searchTeamMembers] Excluding team member: ${member.displayName || member.givenName || "Unknown"}`);
+        if (isMatch) {
+          console.log(`[searchTeamMembers] Including team member: ${member.displayName || member.givenName || "Unknown"} with ID: ${member.id}`);
         }
-        return !isExcluded;
+        return isMatch;
       });
 
-      console.log(`[searchTeamMembers] Returning ${filteredTeamMembers.length} team members (filtered from ${response.teamMembers.length})`);
+      console.log(`[searchTeamMembers] Returning ${filteredTeamMembers.length} team members:`, filteredTeamMembers.map(m => ({ id: m.id, name: m.displayName || m.givenName })));
 
       res.json(filteredTeamMembers);
     } catch (error) {
