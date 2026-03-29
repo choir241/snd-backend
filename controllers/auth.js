@@ -235,6 +235,34 @@ module.exports = {
         handleErrorMessage("Square OAuth did not return access token", token, "token");
       }
 
+      console.log("[callback] Step 5b: Fetching user locations from Square");
+      const userClient = {
+        squareClient: {
+          token: token.access_token,
+          environment: "Production"
+        }
+      };
+      
+      let locationId = null;
+      try {
+        const { client: SquareClient } = require("square");
+        const squareClient = new SquareClient({
+          token: token.access_token,
+          environment: SquareEnvironment.Production,
+        });
+        const locationsResponse = await squareClient.locations.list();
+        console.log("[callback] Locations response:", locationsResponse);
+        
+        if (locationsResponse.locations && locationsResponse.locations.length > 0) {
+          locationId = locationsResponse.locations[0].id;
+          console.log("[callback] Using locationId:", locationId);
+        } else {
+          console.warn("[callback] No locations found for this user");
+        }
+      } catch (locErr) {
+        console.error("[callback] Error fetching locations:", locErr.message);
+      }
+
       console.log("[callback] Step 6: Inserting user into MongoDB");
       const db = connectMongoClient.db("Supreme-Nomads-Detailing");
 
@@ -251,6 +279,7 @@ module.exports = {
         accessToken: token.access_token,
         refreshToken: token.refresh_token,
         expiresAt: token.expires_at,
+        locationId: locationId,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -514,6 +543,7 @@ module.exports = {
         accessToken: user.accessToken,
         refreshToken: user.refreshToken,
         expiresAt: user.expiresAt,
+        locationId: user.locationId,
         createdAt: user.createdAt,
       });
     } catch (err) {
@@ -671,6 +701,7 @@ module.exports = {
         refreshToken: user.refreshToken,
         expiresAt: user.expiresAt,
         userId: user.userId,
+        locationId: user.locationId,
       });
     } catch (err) {
       console.error("[getAuthTokens] ERROR:", err.message);

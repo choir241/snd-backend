@@ -60,13 +60,18 @@ module.exports = {
 
       const idempotencyKey = crypto.randomUUID();
 
-      const {
+      let {
         referenceId = generateReferenceId(),
         locationId,
         lineItems,
         taxes = [],
         discounts = [],
       } = req.body;
+
+      if (!locationId && user && user.locationId) {
+        locationId = user.locationId;
+        console.log("[createOrder] Using locationId from user document:", locationId);
+      }
 
       console.log("[createOrder] Full request body:", JSON.stringify(req.body));
       console.log("[createOrder] Location ID being used:", locationId);
