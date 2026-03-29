@@ -138,12 +138,16 @@ const revokeSquareToken = async (accessToken) => {
 };
 
 const scopes = [
+  "APPOINTMENTS_READ",
+  "APPOINTMENTS_WRITE",
   "EMPLOYEES_READ",
+  "ITEMS_READ",
   "MERCHANT_PROFILE_READ",
   "ORDERS_READ",
   "ORDERS_WRITE",
   "INVOICES_READ",
   "INVOICES_WRITE",
+  "PAYMENTS_WRITE",
   "CUSTOMERS_READ",
   "CUSTOMERS_WRITE",
 ];
