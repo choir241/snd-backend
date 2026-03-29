@@ -8,8 +8,6 @@ const crypto = require("crypto");
 module.exports = {
   searchAvailability: async (req, res) => {
     try {      
-      console.log("[searchAvailability] Auth source:", source, "userId:", authUserId);
-
       const searchAvailability = await client.bookings.searchAvailability({
         query: {
           filter: {
