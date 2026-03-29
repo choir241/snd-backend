@@ -7,13 +7,7 @@ const crypto = require("crypto");
 
 module.exports = {
   searchAvailability: async (req, res) => {
-    try {
-      const { userId: authUserId, source } = await getUserIdFromRequest(req);
-      
-      if (!authUserId) {
-        return res.status(401).json({ error: "Authentication required. Please log in." });
-      }
-      
+    try {      
       console.log("[searchAvailability] Auth source:", source, "userId:", authUserId);
 
       const searchAvailability = await client.bookings.searchAvailability({
