@@ -8,6 +8,23 @@ const crypto = require("crypto");
 module.exports = {
   searchAvailability: async (req, res) => {
     try {      
+      const { teamMemberIds } = req.body;
+      
+      const segmentFilters = [];
+      
+      if (teamMemberIds && Array.isArray(teamMemberIds) && teamMemberIds.length > 0) {
+        teamMemberIds.forEach(teamMemberId => {
+          segmentFilters.push({
+            serviceVariationId: req.body.serviceVariationId,
+            teamMemberId: teamMemberId,
+          });
+        });
+      } else {
+        segmentFilters.push({
+          serviceVariationId: req.body.serviceVariationId,
+        });
+      }
+
       const searchAvailability = await client.bookings.searchAvailability({
         query: {
           filter: {
@@ -16,11 +33,7 @@ module.exports = {
               endAt: req.body.endAt,
             },
             locationId: process.env.LOCATION_ID,
-            segmentFilters: [
-              {
-                serviceVariationId: req.body.serviceVariationId,
-              },
-            ],
+            segmentFilters: segmentFilters,
           },
         },
       });
@@ -31,10 +44,13 @@ module.exports = {
             availability.appointmentSegments[0].serviceVariationId;
           const durationMinutes =
             availability.appointmentSegments[0].durationMinutes;
+          const teamMemberId =
+            availability.appointmentSegments[0].teamMemberId;
           return {
             startAt: availability.startAt,
             variationId: variationId,
             durationMinutes: durationMinutes,
+            teamMemberId: teamMemberId,
           };
         },
       );
